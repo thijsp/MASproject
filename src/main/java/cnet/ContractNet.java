@@ -5,6 +5,7 @@ import agents.DroneParcel;
 import agents.UAV;
 import com.github.rinde.rinsim.core.model.comm.Message;
 import com.google.common.base.Optional;
+import communication.AuctionMessage;
 import communication.MessageContent;
 import communication.MessageType;
 import communication.NewParcelMessage;
@@ -69,7 +70,7 @@ public class ContractNet {
 
     public void moderateAuction(Auction auction, DistributionCenter moderator) {}
 
-    public boolean placeBid(List<MessageContent> messages, UAV bidder) {
+    public boolean placeBid(AuctionMessage content, UAV bidder) {
         return false;
     }
 
@@ -84,4 +85,5 @@ public class ContractNet {
         return contents;
     }
 
+    public void handleUnactiveAuctions(List<Auction> unactiveAuctions) {}
 }

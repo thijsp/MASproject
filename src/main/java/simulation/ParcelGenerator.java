@@ -47,7 +47,6 @@ public class ParcelGenerator implements TickListener {
                 this.sim.register(parcel);
                 depot.addParcel(parcel);
                 parcels_generated++;
-                System.out.println(parcels_generated);
             }
         }
     }

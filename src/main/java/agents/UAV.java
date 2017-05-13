@@ -34,7 +34,6 @@ public class UAV extends Vehicle implements CommUser {
     private RandomGenerator rnd;
 
     private Optional<DroneParcel> parcel;
-    //private DistributionCenter depot;
     private Optional<CommDevice> commDevice;
     private State state = State.IDLE;
     private ContractNet cnet;
@@ -47,10 +46,6 @@ public class UAV extends Vehicle implements CommUser {
         this.cnet = new StatContractNet();
 
     }
-
-//    public DistributionCenter getDepot(){
-//        return this.depot;
-//    }
 
     private void setState(State state) {
         if (!this.satisfiesPreconditions(state)) {
@@ -83,14 +78,10 @@ public class UAV extends Vehicle implements CommUser {
         RoadModel rm = this.getRoadModel();
         PDPModel pm = this.getPDPModel();
 
-        // define the next move and take action
         this.doNextMove(rm, pm, time);
     }
 
     private void doNextMove(RoadModel rm, PDPModel pm, TimeLapse time) {
-        Point pos = rm.getPosition(this);
-        //Point depotPos = rm.getPosition(this.getDepot());
-
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in UAV"); }
 
         else if(this.state.equals(State.DELIVERING)) {
@@ -119,6 +110,7 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     private void deliverParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
+        //this.readMessageContents(); // clear outbox, (??)
         if (rm.getPosition(this).equals(this.parcel.get().getDeliveryLocation())) {
             pm.deliver(this, this.parcel.get(), time);
             this.parcel = Optional.absent();
@@ -129,8 +121,8 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     private void pickupParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
+        //this.readMessageContents(); // clear outbox (??)
         Point pos = rm.getPosition(this);
-        //Point depotPos = rm.getPosition(this.getDepot());
         Point depotPos = this.parcel.get().getPickupLocation();
         if (pos.equals(depotPos)) {
             DistributionCenter parcelDepot = this.parcel.get().getDepot();
@@ -149,9 +141,13 @@ public class UAV extends Vehicle implements CommUser {
         List<MessageContent> messages = this.readMessageContents();
         for (MessageContent content : messages) {
             if (content.getType().equals(MessageType.NEW_PARCEL)) {
-                boolean bidPlaced = this.getCnet().placeBid(messages, this);
-                if (bidPlaced) {
-                    this.setState(State.IN_AUCTION);
+                boolean stillActive = ((AuctionMessage) content).AuctionStillActive();
+                if (stillActive) {
+                    boolean bidPlaced = this.getCnet().placeBid((AuctionMessage)content, this);
+                    if (bidPlaced) {
+                        this.setState(State.IN_AUCTION);
+                        break;
+                    }
                 }
             }
         }
@@ -168,20 +164,23 @@ public class UAV extends Vehicle implements CommUser {
         for (MessageContent message : messages) {
             if (message.getType().equals(MessageType.AUCTION_RESULT)) {
                 AuctionResultMessage content = (AuctionResultMessage) message;
-                if (content.isAccepted()) {
+                boolean lost = !content.isAccepted();
+                if (!lost) {
                     auctions.add(content.getAuction());
                 }
+                // if the UAV received an auction_result message, but it lost, it's idle again
+                else {this.setState(State.IDLE); }
             }
         }
+
+        // get the parcel from the auction it won and go pick it up
         Optional<DroneParcel> selectedParcel = this.getCnet().selectAuction(auctions, this);
         if(selectedParcel.isPresent()) {
             this.parcel = selectedParcel;
             this.setState(State.PICKING);
             rm.moveTo(this, selectedParcel.get().getPickupLocation(), time );
         }
-        else if (!messages.isEmpty()) {
-            this.setState(State.IDLE);
-        }
+        // if the UAV is in auction state, but it didn't receive an auction_result message yet, wait
     }
 
     public Double calculateDeliveryTime(Point loc) {

@@ -58,11 +58,15 @@ public class Auction {
             }
         }
         return smallestBid;
-
     }
 
     public void close() {
+        if (!this.open) {throw new IllegalStateException("auction is closed");}
         this.open = false;
+    }
+
+    public boolean hasBids() {
+        return (!this.bids.isEmpty());
     }
 
 

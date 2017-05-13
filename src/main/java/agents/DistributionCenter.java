@@ -93,6 +93,17 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     public void tick(TimeLapse timeLapse) {
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
         this.checkMessages();
+        this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
+    }
+
+    private List<Auction> getUnactiveAuctions() {
+        List<Auction> unactiveauctions = new ArrayList<>();
+        for (Auction auction : this.auctions) {
+            if (!auction.hasBids()) {
+                unactiveauctions.add(auction);
+            }
+        }
+        return unactiveauctions;
     }
 
     private void checkMessages() {
@@ -101,11 +112,12 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         for (int i = 0; i < messages.size(); i++) {
             MessageContent content = messages.get(i);
             if (content.getType().equals(MessageType.BID)) {
-                BidMessage message = (BidMessage) messages.get(i);
-                Auction auction = message.getAuction();
+                BidMessage message = (BidMessage) content;
                 auctions.add(message.getAuction());
             }
             if (content.getType().equals(MessageType.PARCEL_ACCEPTANCE)) {
+                Auction auction = ((AcceptanceMessage) content).getAuction();
+                auction.close();
             }
         }
         this.moderateAuction(auctions);

@@ -24,17 +24,14 @@ public class StatContractNet extends ContractNet {
         super.sendAuctionMessage(moderator, auction);
     }
 
-    public boolean placeBid(List<MessageContent> messages, UAV bidder) {
-        for (int i = 0; i < messages.size(); i++) {
-            NewParcelMessage message = (NewParcelMessage)messages.get(i);
-            Auction auction = message.getAuction();
-            if (auction.isOpen()) {
-                DroneParcel parcel = auction.getParcel();
-                double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
-                Bid bid = new Bid(bidder, delTime, auction);
-                bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
-                return true;
-            }
+    public boolean placeBid(AuctionMessage content, UAV bidder) {
+        Auction auction = content.getAuction();
+        if (auction.isOpen()) {
+            DroneParcel parcel = auction.getParcel();
+            double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
+            Bid bid = new Bid(bidder, delTime, auction);
+            bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
+            return true;
         }
         return false;
     }
@@ -58,11 +55,17 @@ public class StatContractNet extends ContractNet {
         for (Auction auction : auctions) {
             if (auction.isOpen()) {
                 bidder.sendDirectMessage(new AcceptanceMessage(auction, true),auction.getModerator());
-                auction.close();
                 return Optional.of(auction.getParcel());
             }
         }
         return Optional.absent();
+    }
+
+    public void handleUnactiveAuctions(List<Auction> unactiveAuctions) {
+        for (Auction auction : unactiveAuctions) {
+            DistributionCenter moderator = auction.getModerator();
+            moderator.sendBroadcastMessage(new NewParcelMessage(auction));
+        }
     }
 
 

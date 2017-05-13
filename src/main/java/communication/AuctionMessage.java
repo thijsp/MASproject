@@ -16,4 +16,8 @@ public class AuctionMessage extends MessageContent {
     public Auction getAuction() {
         return this.auction;
     }
+
+    public boolean AuctionStillActive() {
+        return this.getAuction().isOpen();
+    }
 }
