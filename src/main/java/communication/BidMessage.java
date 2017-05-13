@@ -1,17 +1,17 @@
 package communication;
 
-import agents.DroneParcel;
+import cnet.Auction;
 
 /**
  * Created by thijspeirelinck on 13/05/2017.
  */
-public class AcceptParcelMessage extends AuctionMessage {
+public class BidMessage extends AuctionMessage {
 
     private double deliveryTime;
 
-    public AcceptParcelMessage(DroneParcel parcel, Double deliveryTime) {
-        super(parcel);
-        this.setType(MessageType.ACCEPTED);
+    public BidMessage(Auction auction, Double deliveryTime) {
+        super(auction);
+        this.setType(MessageType.BID);
         this.deliveryTime = deliveryTime;
     }
 

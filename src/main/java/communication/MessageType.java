@@ -6,6 +6,6 @@ package communication;
 
 public enum MessageType {
 
-    NEW_PARCEL, BID, ACCEPTED, REJECTED
+    NEW_PARCEL, BID, AUCTION_RESULT
 
 }

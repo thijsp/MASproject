@@ -1,7 +1,6 @@
 package communication;
 
-import agents.DroneParcel;
-import com.github.rinde.rinsim.core.model.comm.MessageContents;
+import cnet.Auction;
 
 /**
  * Created by thijspeirelinck on 11/05/2017.
@@ -9,10 +8,9 @@ import com.github.rinde.rinsim.core.model.comm.MessageContents;
 
 public class NewParcelMessage extends AuctionMessage {
 
-    private DroneParcel parcel;
 
-    public NewParcelMessage(DroneParcel parcel) {
-        super(parcel);
+    public NewParcelMessage(Auction auction) {
+        super(auction);
         this.setType(MessageType.NEW_PARCEL);
     }
 

@@ -1,19 +1,19 @@
 package communication;
 
-import agents.DroneParcel;
+import cnet.Auction;
 
 /**
  * Created by thijspeirelinck on 13/05/2017.
  */
 public class AuctionMessage extends MessageContent {
 
-    private DroneParcel parcel;
+    private Auction auction;
 
-    AuctionMessage(DroneParcel parcel) {
-        this.parcel = parcel;
+    AuctionMessage(Auction auction) {
+        this.auction = auction;
     }
 
-    public DroneParcel parcel() {
-        return this.parcel;
+    public Auction getAuction() {
+        return this.auction;
     }
 }

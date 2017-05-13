@@ -15,26 +15,32 @@ import org.apache.commons.math3.random.RandomGenerator;
 public class ParcelGenerator implements TickListener {
 
     private DistributionCenter depot;
-    private static final long STOP_TIME = 1200000L;
     private final Simulator sim;
     private RandomGenerator rnd;
+    private int parcels_generated = 0;
+    private long stop_time;
 
-    ParcelGenerator(DistributionCenter depot, Simulator sim) {
+
+
+    ParcelGenerator(DistributionCenter depot, Simulator sim, Long stop_time) {
         this.depot = depot;
         this.sim = sim;
         this.rnd = sim.getRandomGenerator();
+        this.stop_time = stop_time;
     }
 
     @Override
     public void tick(TimeLapse time) {
-        if(time.getTime() > STOP_TIME) {
+        if(time.getTime() > this.stop_time) {
             this.sim.stop();
-        } else if (this.rnd.nextDouble() < 0.2) {
+            System.out.println("simulation ended");
+        } else if (this.rnd.nextDouble() < 0.2 & parcels_generated < 5) {
             if (this.depot.getPosition().isPresent()) {
                 Point destination = this.sim.getModelProvider().getModel(PlaneRoadModel.class).getRandomPosition(this.sim.getRandomGenerator());
                 DroneParcel parcel = new DroneParcel(this.depot.getPosition().get(), destination);
                 this.sim.register(parcel);
                 this.depot.addParcel(parcel);
+                parcels_generated++;
             }
         }
     }

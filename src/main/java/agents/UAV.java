@@ -4,28 +4,27 @@ package agents;
  * Created by thijspeirelinck on 11/05/2017.
  */
 
+import cnet.Auction;
+import cnet.Bid;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
-import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
 import com.github.rinde.rinsim.core.model.pdp.VehicleDTO;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
-import com.github.rinde.rinsim.core.model.road.RoadModels;
-import com.github.rinde.rinsim.core.model.road.RoadUser;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import communication.AcceptBidMessage;
-import communication.MessageContent;
-import communication.MessageType;
+import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class UAV extends Vehicle implements CommUser {
     private static final double SPEED = 3000.0D;
-    private static final double RANGE = 3.0D;
+    private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
     private static final int CAPACITY = 1;
     private RandomGenerator rnd;
@@ -47,7 +46,26 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     private void setState(State state) {
+        if (!this.satisfiesPreconditions(state)) {
+            throw new IllegalStateException("Cannot change to this state");
+        }
         this.state = state;
+    }
+
+    private boolean satisfiesPreconditions(State state) {
+        if (state.equals(State.PICKING)) {
+            return (!this.parcel.isPresent());
+        }
+        if (state.equals(State.DELIVERING)) {
+            return this.parcel.isPresent();
+        }
+        if (state.equals(State.IDLE)) {
+            return (!this.parcel.isPresent());
+        }
+        if (state.equals(State.IN_AUCTION)) {
+            return (!this.parcel.isPresent());
+        }
+        return true;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
@@ -58,19 +76,28 @@ public class UAV extends Vehicle implements CommUser {
         RoadModel rm = this.getRoadModel();
         PDPModel pm = this.getPDPModel();
 
-        Point depotPosition = rm.getPosition(this.depot);
-        Point pos = rm.getPosition(this);
+        // define the next move and take action
+        this.doNextMove(rm, pm, time);
+    }
 
-        // if a parcel is present, go and deliver it
-        if (this.state.equals(State.DELIVERING)) {
+    private void doNextMove(RoadModel rm, PDPModel pm, TimeLapse time) {
+        Point pos = rm.getPosition(this);
+        Point depotPos = rm.getPosition(this.getDepot());
+
+        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in UAV"); }
+
+        else if(this.state.equals(State.DELIVERING)) {
             this.deliverParcel(rm, pm, time);
         }
-
-        // if no parcel is present, figure out what to do
-        else {
-            this.doNextMove(rm, pm, time);
+        else if (this.state.equals(State.PICKING)) {
+            this.pickupParcel(rm, pm, time);
         }
-
+        else if (this.state.equals(State.IN_AUCTION)) {
+            this.checkAuctionResult(rm, time);
+        }
+        else if (this.state.equals(State.IDLE)) {
+            this.checkMessages(rm, pm, time);
+        }
     }
 
     @Override
@@ -95,24 +122,16 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     private void pickupParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
-        DroneParcel parcel = this.depot.getRandomParcel();
-        pm.pickup(this, parcel, time);
-        assert rm.containsObject(parcel);
-        this.parcel = Optional.of(parcel);
-        this.setState(State.DELIVERING);
-    }
-
-    private void doNextMove(RoadModel rm, PDPModel pm, TimeLapse time) {
         Point pos = rm.getPosition(this);
         Point depotPos = rm.getPosition(this.getDepot());
-
         if (pos.equals(depotPos)) {
-            this.pickupParcel(rm, pm, time);
+            DroneParcel parcel = this.depot.getRandomParcel();
+            pm.pickup(this, parcel, time);
+            assert rm.containsObject(parcel);
+            this.parcel = Optional.of(parcel);
+            this.setState(State.DELIVERING);
         }
-        else if (this.state.equals(State.IDLE)) {
-            this.checkMessages(rm, pm, time);
-        }
-        else if (this.state.equals(State.PICKING)) {
+        else {
             rm.moveTo(this, depotPos, time);
         }
 
@@ -120,32 +139,70 @@ public class UAV extends Vehicle implements CommUser {
 
     private void checkMessages(RoadModel rm, PDPModel pm, TimeLapse time) {
         CommDevice device = this.commDevice.get();
-        if (device.getUnreadCount() != 0) {
-            ImmutableList<Message> messages = device.getUnreadMessages();
-            // always take first received message first (??)
+        List<Message> messages = this.readMessagesOfType(MessageType.NEW_PARCEL);
+        //for now: just read the first message (has to become a loop over messages)
+        if(!messages.isEmpty()) {
             Message message = messages.get(0);
-            MessageContent content = (MessageContent)message.getContents();
+            MessageContent content = (MessageContent) message.getContents();
             if (content.getType().equals(MessageType.NEW_PARCEL)) {
-                this.handleNewParcel(rm, pm, time);
+                NewParcelMessage parcelMessage = (NewParcelMessage) content;
+                this.handleNewParcel(rm, pm, time, parcelMessage.getAuction());
             }
-
         }
     }
 
-    private void handleNewParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
-        if (this.commDevice.isPresent()) {
-            CommDevice device = this.commDevice.get();
-            device.send(new AcceptBidMessage(), this.getDepot());
-            this.setState(State.PICKING);
-            rm.moveTo(this, rm.getPosition(this.getDepot()), time);
+    private void handleNewParcel(RoadModel rm, PDPModel pm, TimeLapse time, Auction auction) {
+        CommDevice device = this.commDevice.get();
+        Double deliveryTime = this.calculateDeliveryTime(auction.getParcel());
+        Bid bid = new Bid(this, deliveryTime);
+        auction.addBid(bid);
+        device.send(new BidMessage(auction, deliveryTime), this.getDepot());
+        this.setState(State.IN_AUCTION);
+    }
+
+    private void checkAuctionResult(RoadModel rm, TimeLapse time) {
+        CommDevice device = this.commDevice.get();
+        List<Message> messages = this.readMessagesOfType(MessageType.AUCTION_RESULT);
+        if (!messages.isEmpty()) {
+            // temporary: this can only be one message
+            assert messages.size() == 1;
+            AuctionResultMessage content = (AuctionResultMessage) messages.get(0).getContents();
+            Boolean result = content.isAccepted();
+            if (result) {
+                DistributionCenter depot = content.getAuction().getModerator();
+                Point depotPos = rm.getPosition(depot);
+                this.setState(State.PICKING);
+                rm.moveTo(this, depotPos, time);
+            } else {
+                this.setState(State.IDLE);
+            }
         }
-        else {
-            throw new IllegalStateException("No commDevice present when accepting bid");
+    }
+
+    private Double calculateDeliveryTime(DroneParcel parcel) {
+        //test: random delivery time
+        return this.rnd.nextDouble();
+    }
+
+    private List<Message> readMessagesOfType(MessageType type) {
+        CommDevice device = this.commDevice.get();
+        ArrayList<Message> messagesOfType = new ArrayList<>();
+        if (device.getUnreadCount() != 0) {
+            ImmutableList<Message> messages = device.getUnreadMessages();
+            Iterator<Message> mIt = messages.iterator();
+            while (mIt.hasNext()) {
+                Message message = mIt.next();
+                MessageContent content = (MessageContent)message.getContents();
+                if (content.getType().equals(type)) {
+                    messagesOfType.add(message);
+                }
+            }
         }
+        return messagesOfType;
     }
 }
 
  enum State {
 
-    IDLE, DELIVERING, PICKING
+    IDLE, DELIVERING, PICKING, IN_AUCTION
 }

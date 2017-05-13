@@ -29,7 +29,7 @@ public final class SimGenerator {
     static final long RANDOM_SEED = 123L;
     static final int NUM_VEHICLES = 200;
     static final int TEST_SPEEDUP = 26;
-    static final long TEST_STOP_TIME = 600000L;
+    static final long TEST_STOP_TIME = 60000000L;
     static final Point DEPOT_LOCATION = new Point(5.0D, 5.0D);
 
     private SimGenerator() {
@@ -59,22 +59,15 @@ public final class SimGenerator {
         sim.register(depot);
 
         // create and register the UAVs
-        for(int i = 0; i < 20; ++i) {
+        for(int i = 0; i < 2; ++i) {
             UAV uav = new UAV(sim.getRandomGenerator(), depot);
             sim.register(uav);
         }
 
         // create a ticklistner that generates parcels, registers them and add them to the depot
-        ParcelGenerator parcelgen = new ParcelGenerator(depot, sim);
+        ParcelGenerator parcelgen = new ParcelGenerator(depot, sim, TEST_STOP_TIME);
         sim.addTickListener(parcelgen);
 
-
-//        for (int i = 0; i < 2000; ++i) {
-//            Point destination = sim.getModelProvider().getModel(PlaneRoadModel.class).getRandomPosition(sim.getRandomGenerator());
-//            DroneParcel parcel = new DroneParcel(DEPOT_LOCATION, destination);
-//            sim.register(parcel);
-//            depot.addParcel(parcel);
-//        }
 
         System.out.println(sim.getModelProvider().getModel(PlaneRoadModel.class).getObjects().size());
 
