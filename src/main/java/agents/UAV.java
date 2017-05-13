@@ -6,6 +6,8 @@ package agents;
 
 import cnet.Auction;
 import cnet.Bid;
+import cnet.ContractNet;
+import cnet.StatContractNet;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
@@ -19,6 +21,7 @@ import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import javax.swing.text.html.Option;
+import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,16 +32,19 @@ public class UAV extends Vehicle implements CommUser {
     private static final double RELIABILITY = 1.0D;
     private static final int CAPACITY = 1;
     private RandomGenerator rnd;
+
     private Optional<DroneParcel> parcel;
     //private DistributionCenter depot;
     private Optional<CommDevice> commDevice;
     private State state = State.IDLE;
+    private ContractNet cnet;
 
     public UAV(RandomGenerator rnd) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(SPEED).build());
         this.rnd = rnd;
         //this.depot = depot;
         this.commDevice = Optional.absent();
+        this.cnet = new StatContractNet();
 
     }
 
@@ -48,7 +54,7 @@ public class UAV extends Vehicle implements CommUser {
 
     private void setState(State state) {
         if (!this.satisfiesPreconditions(state)) {
-            throw new IllegalStateException("Cannot change to this state");
+            throw new IllegalStateException("Cannot change to this state: " + state);
         }
         this.state = state;
     }
@@ -97,7 +103,7 @@ public class UAV extends Vehicle implements CommUser {
             this.checkAuctionResult(rm, time);
         }
         else if (this.state.equals(State.IDLE)) {
-            this.checkMessages(rm, pm, time);
+            this.checkAvailableAuctions(rm, pm, time);
         }
     }
 
@@ -137,75 +143,64 @@ public class UAV extends Vehicle implements CommUser {
         else {
             rm.moveTo(this, depotPos, time);
         }
-
     }
 
-    private void checkMessages(RoadModel rm, PDPModel pm, TimeLapse time) {
-        CommDevice device = this.commDevice.get();
-        List<Message> messages = this.readMessagesOfType(MessageType.NEW_PARCEL);
-        //for now: just read the first message (has to become a loop over messages)
-        if(!messages.isEmpty()) {
-            Message message = messages.get(0);
-            MessageContent content = (MessageContent) message.getContents();
-            NewParcelMessage parcelMessage = (NewParcelMessage) content;
-            Auction auction = parcelMessage.getAuction();
-            if (auction.isOpen()) {
-                this.handleNewParcel(rm, pm, time, auction);
+    private void checkAvailableAuctions(RoadModel rm, PDPModel pm, TimeLapse time) {
+        List<MessageContent> messages = this.readMessageContents();
+        for (MessageContent content : messages) {
+            if (content.getType().equals(MessageType.NEW_PARCEL)) {
+                boolean bidPlaced = this.getCnet().placeBid(messages, this);
+                if (bidPlaced) {
+                    this.setState(State.IN_AUCTION);
+                }
             }
         }
     }
 
-    private void handleNewParcel(RoadModel rm, PDPModel pm, TimeLapse time, Auction auction) {
+    public void sendDirectMessage(MessageContent content, CommUser recipiant) {
         CommDevice device = this.commDevice.get();
-        DroneParcel parcel = auction.getParcel();
-        Double deliveryTime = this.calculateDeliveryTime(parcel);
-        Bid bid = new Bid(this, deliveryTime);
-        auction.addBid(bid);
-        device.send(new BidMessage(auction, deliveryTime), parcel.getDepot() );
-        this.setState(State.IN_AUCTION);
+        device.send(content, recipiant);
     }
 
     private void checkAuctionResult(RoadModel rm, TimeLapse time) {
-        CommDevice device = this.commDevice.get();
-        List<Message> messages = this.readMessagesOfType(MessageType.AUCTION_RESULT);
-        if (!messages.isEmpty()) {
-            // temporary: this can only be one message
-            assert messages.size() == 1;
-            AuctionResultMessage content = (AuctionResultMessage) messages.get(0).getContents();
-            Boolean result = content.isAccepted();
-            if (result) {
-                DistributionCenter depot = content.getAuction().getModerator();
-                Point depotPos = rm.getPosition(depot);
-                this.parcel = Optional.of(content.getAuction().getParcel());
-                this.setState(State.PICKING);
-                content.getAuction().close();
-                rm.moveTo(this, depotPos, time);
-            } else {
-                this.setState(State.IDLE);
+        List<MessageContent> messages = this.readMessageContents();
+        List<Auction> auctions = new ArrayList<>();
+        for (MessageContent message : messages) {
+            if (message.getType().equals(MessageType.AUCTION_RESULT)) {
+                AuctionResultMessage content = (AuctionResultMessage) message;
+                if (content.isAccepted()) {
+                    auctions.add(content.getAuction());
+                }
             }
+        }
+        Optional<DroneParcel> selectedParcel = this.getCnet().selectAuction(auctions, this);
+        if(selectedParcel.isPresent()) {
+            this.parcel = selectedParcel;
+            this.setState(State.PICKING);
+            rm.moveTo(this, selectedParcel.get().getPickupLocation(), time );
+        }
+        else if (!messages.isEmpty()) {
+            this.setState(State.IDLE);
         }
     }
 
-    private Double calculateDeliveryTime(DroneParcel parcel) {
+    public Double calculateDeliveryTime(Point loc) {
         //test: random delivery time
         return this.rnd.nextDouble();
     }
 
-    private List<Message> readMessagesOfType(MessageType type) {
+    private List<MessageContent> readMessageContents() {
         CommDevice device = this.commDevice.get();
-        ArrayList<Message> messagesOfType = new ArrayList<>();
+        List<MessageContent> contents = new ArrayList<>();
         if (device.getUnreadCount() != 0) {
             ImmutableList<Message> messages = device.getUnreadMessages();
-            Iterator<Message> mIt = messages.iterator();
-            while (mIt.hasNext()) {
-                Message message = mIt.next();
-                MessageContent content = (MessageContent)message.getContents();
-                if (content.getType().equals(type)) {
-                    messagesOfType.add(message);
-                }
-            }
+            contents = this.getCnet().getMessageContent(messages);
         }
-        return messagesOfType;
+        return contents;
+    }
+
+    public ContractNet getCnet() {
+        return this.cnet;
     }
 }
 

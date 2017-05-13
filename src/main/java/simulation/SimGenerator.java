@@ -11,6 +11,7 @@ import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.road.PlaneRoadModel;
+import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModelBuilders;
 import com.github.rinde.rinsim.core.model.time.TickListener;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
@@ -21,6 +22,8 @@ import com.github.rinde.rinsim.ui.renderers.CommRenderer;
 import com.github.rinde.rinsim.ui.renderers.PlaneRoadModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
 
+import java.util.ArrayList;
+
 public final class SimGenerator {
     static final double VEHICLE_SPEED_KMH = 50.0D;
     static final Point MIN_POINT = new Point(-10.0D, -10.0D);
@@ -30,13 +33,18 @@ public final class SimGenerator {
     static final int NUM_VEHICLES = 200;
     static final int TEST_SPEEDUP = 26;
     static final long TEST_STOP_TIME = 60000000L;
-    static final Point DEPOT_LOCATION = new Point(5.0D, 5.0D);
+
+    static final int DEPOTS = 4;
+    static final int UAVS = 4;
+    static final int MAX_PARCELS = 100;
+
+    static final boolean TESTING = true;
 
     private SimGenerator() {
     }
 
     public static void main(String[] args) {
-        run(false);
+        run(TESTING);
     }
 
     public static void run(boolean testing) {
@@ -44,7 +52,7 @@ public final class SimGenerator {
                 .with(RoadUserRenderer.builder().withImageAssociation(DistributionCenter.class, "/graphics/perspective/tall-building-64.png"))
                 .with(CommRenderer.builder().withMessageCount());
         if(testing) {
-            viewBuilder = viewBuilder.withSpeedUp(16).withAutoClose().withAutoPlay().withSimulatorEndTime(600000L);
+            viewBuilder = viewBuilder.withSpeedUp(TEST_SPEEDUP).withAutoClose().withAutoPlay().withSimulatorEndTime(TEST_STOP_TIME);
         }
 
         Simulator sim = Simulator.builder().setTickLength(1000L).setRandomSeed(RANDOM_SEED)
@@ -54,18 +62,25 @@ public final class SimGenerator {
                 .addModel(viewBuilder)
                 .build();
 
-        // create and register the depot
-        DistributionCenter depot = new DistributionCenter(DEPOT_LOCATION, 1337.0D, sim.getRandomGenerator());
-        sim.register(depot);
+        RoadModel rm = sim.getModelProvider().tryGetModel(RoadModel.class);
+
+        ArrayList<DistributionCenter> depots = new ArrayList<>();
+        // create and register the depots
+        for (int i = 0; i < DEPOTS; i++) {
+            Point depotLocation = rm.getRandomPosition(sim.getRandomGenerator());
+            DistributionCenter depot = new DistributionCenter(depotLocation, 1337.0D, sim.getRandomGenerator());
+            sim.register(depot);
+            depots.add(depot);
+        }
 
         // create and register the UAVs
-        for(int i = 0; i < 2; ++i) {
-            UAV uav = new UAV(sim.getRandomGenerator(), depot);
+        for(int i = 0; i < UAVS; ++i) {
+            UAV uav = new UAV(sim.getRandomGenerator());
             sim.register(uav);
         }
 
-        // create a ticklistner that generates parcels, registers them and add them to the depot
-        ParcelGenerator parcelgen = new ParcelGenerator(depot, sim, TEST_STOP_TIME);
+        // create a ticklistner that generates parcels, registers them and add them to a depot
+        ParcelGenerator parcelgen = new ParcelGenerator(depots, sim, TEST_STOP_TIME, MAX_PARCELS);
         sim.addTickListener(parcelgen);
 
 

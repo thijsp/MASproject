@@ -5,6 +5,8 @@ package agents;
  */
 
 import cnet.Auction;
+import cnet.ContractNet;
+import cnet.StatContractNet;
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
 import com.github.rinde.rinsim.core.model.comm.CommDeviceBuilder;
 import com.github.rinde.rinsim.core.model.comm.CommUser;
@@ -25,12 +27,13 @@ import java.util.*;
 
 public class DistributionCenter extends Depot implements CommUser, TickListener {
 
-    private Deque<DroneParcel> availableParcels = new LinkedList<>();
+    private List<DroneParcel> availableParcels = new ArrayList<>();
     private Optional<CommDevice> commDevice;
     private RandomGenerator rnd;
     private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
     private List<Auction> auctions;
+    private ContractNet cnet;
 
     public DistributionCenter(Point position, double capacity, RandomGenerator rnd) {
         super(position);
@@ -38,31 +41,41 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         this.commDevice = Optional.absent();
         this.rnd = rnd;
         this.auctions = new ArrayList<>();
+        this.cnet = new StatContractNet();
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
     }
 
     public void addParcel(DroneParcel p) {
-        if (this.commDevice.isPresent()) {
-            this.availableParcels.add(p);
-            CommDevice device = this.commDevice.get();
-            Auction parcelAuction = new Auction(p, this);
-            this.auctions.add(parcelAuction);
-            device.broadcast(new NewParcelMessage(parcelAuction));
-        }
-        else {
-            throw new IllegalStateException("No commDevice configured in the depot");
-        }
+        this.availableParcels.add(p);
+        this.getCnet().addAuction(p, this);
     }
 
-    public DroneParcel getRandomParcel() {
-        if (!availableParcels.isEmpty()) {
-            return availableParcels.pop();
+    public void addAuction(Auction auction) {
+        this.auctions.add(auction);
+    }
+
+    public void sendBroadcastMessage(MessageContent content) {
+        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in the depot");}
+        CommDevice device = this.commDevice.get();
+        device.broadcast(content);
+    }
+    
+    public void sendDirectMessage(MessageContent content, CommUser recipient) {
+        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in the depot");}
+        CommDevice device = this.commDevice.get();
+        device.send(content, recipient);
+    }
+
+    public DroneParcel getParcel(DroneParcel requestedParcel) {
+        for (DroneParcel parcel : this.availableParcels) {
+            if (parcel.equals(requestedParcel)) {
+                availableParcels.remove(parcel);
+                return parcel;
+            }
         }
-        else {
-            throw new IllegalStateException("UAV asked for non-existing parcel");
-        }
+        throw new IllegalArgumentException("no such parcel available");
     }
 
     @Override
@@ -83,29 +96,46 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     }
 
     private void checkMessages() {
-        CommDevice device = this.commDevice.get();
-        if (device.getUnreadCount() != 0) {
-            ImmutableList<Message> messages = device.getUnreadMessages();
-            // always take first received message first (??)
-            Message message = messages.get(0);
-            MessageContent content = (MessageContent)message.getContents();
-
+        List<MessageContent> messages = this.readMessages();
+        List<Auction> auctions = new ArrayList<>();
+        for (int i = 0; i < messages.size(); i++) {
+            MessageContent content = messages.get(i);
             if (content.getType().equals(MessageType.BID)) {
-                Auction auction = ((BidMessage)content).getAuction();
-                this.moderateAuction(auction);
+                BidMessage message = (BidMessage) messages.get(i);
+                Auction auction = message.getAuction();
+                auctions.add(message.getAuction());
+            }
+            if (content.getType().equals(MessageType.PARCEL_ACCEPTANCE)) {
             }
         }
+        this.moderateAuction(auctions);
     }
 
-    private void moderateAuction(Auction auction) {
-        CommDevice device = this.commDevice.get();
-        UAV winner = auction.getBestBid().getBidder();
-        List<UAV> participants = auction.getParticipants();
-        for (UAV participant : participants) {
-            device.send(new AuctionResultMessage(auction, participant.equals(winner)), participant);
+    private void moderateAuction(List<Auction> auctions) {
+        List<Auction> handledAuctions = new ArrayList<>();
+        for (Auction auction : auctions) {
+            if (!handledAuctions.contains(auction)) {
+                this.getCnet().moderateAuction(auction, this);
+                handledAuctions.add(auction);
+            }
         }
     }
 
     @Override
     public void afterTick(TimeLapse timeLapse) {}
+
+    private List<MessageContent> readMessages() {
+        CommDevice device = this.commDevice.get();
+        List<MessageContent> contents = new ArrayList<>();
+        if (device.getUnreadCount() != 0) {
+            ImmutableList<Message> messages = device.getUnreadMessages();
+            contents = this.getCnet().getMessageContent(messages);
+        }
+        return contents;
+    }
+
+    public ContractNet getCnet() {
+        return this.cnet;
+    }
+
 }

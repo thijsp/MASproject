@@ -11,9 +11,11 @@ public class Bid {
     private UAV bidder;
     private Auction auction;
 
-    public Bid(UAV bidder, double deliveryTime) {
+    public Bid(UAV bidder, double deliveryTime, Auction auction) {
         this.bidder = bidder;
         this.deliveryTime = deliveryTime;
+        this.auction = auction;
+        auction.addBid(this);
     }
 
     public double getBid() {
