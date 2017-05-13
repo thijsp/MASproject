@@ -1,25 +1,20 @@
 package communication;
 
+import agents.DroneParcel;
 import com.github.rinde.rinsim.core.model.comm.MessageContents;
 
 /**
  * Created by thijspeirelinck on 11/05/2017.
  */
 
-public class NewParcelMessage implements MessageContents {
+public class NewParcelMessage extends AuctionMessage {
 
-    private MessageType type;
+    private DroneParcel parcel;
 
-    public NewParcelMessage(MessageType type) {
-        this.type = type;
+    public NewParcelMessage(DroneParcel parcel) {
+        super(parcel);
+        this.setType(MessageType.NEW_PARCEL);
     }
-
-    public MessageType getType() {
-        return this.type;
-    }
-
-
-
 
 
 }
