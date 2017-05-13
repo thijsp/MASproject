@@ -29,7 +29,7 @@ public class UAV extends Vehicle implements CommUser {
     private DistributionCenter depot;
     private Optional<CommDevice> commDevice;
 
-    UAV(RandomGenerator rnd, DistributionCenter depot) {
+    public UAV(RandomGenerator rnd, DistributionCenter depot) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(SPEED).build());
         this.rnd = rnd;
         this.depot = depot;
@@ -62,8 +62,9 @@ public class UAV extends Vehicle implements CommUser {
                 pm.pickup(this, parcel, time);
                 assert rm.containsObject(parcel);
                 this.parcel = Optional.of(parcel);
+            // else: wait to receive a message from the depot
             } else {
-                rm.moveTo(this, depotPosition, time);
+                //rm.moveTo(this, depotPosition, time);
             }
         }
 

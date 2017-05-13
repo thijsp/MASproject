@@ -1,14 +1,19 @@
-package agents;
+package simulation;
 
 /**
  * Created by thijspeirelinck on 11/05/2017.
  */
 
+import agents.DistributionCenter;
+import agents.DroneParcel;
+import agents.UAV;
 import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.road.PlaneRoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModelBuilders;
+import com.github.rinde.rinsim.core.model.time.TickListener;
+import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.Point;
 import com.github.rinde.rinsim.ui.View;
 import com.github.rinde.rinsim.ui.View.Builder;
@@ -35,7 +40,9 @@ public final class SimGenerator {
     }
 
     public static void run(boolean testing) {
-        Builder viewBuilder = View.builder().with(PlaneRoadModelRenderer.builder()).with(RoadUserRenderer.builder()).with(CommRenderer.builder());
+        Builder viewBuilder = View.builder().with(PlaneRoadModelRenderer.builder())
+                .with(RoadUserRenderer.builder().withImageAssociation(DistributionCenter.class, "/graphics/perspective/tall-building-64.png"))
+                .with(CommRenderer.builder().withMessageCount());
         if(testing) {
             viewBuilder = viewBuilder.withSpeedUp(16).withAutoClose().withAutoPlay().withSimulatorEndTime(600000L);
         }
@@ -48,7 +55,7 @@ public final class SimGenerator {
                 .build();
 
         // create and register the depot
-        DistributionCenter depot = new DistributionCenter(DEPOT_LOCATION, 1337.0D);
+        DistributionCenter depot = new DistributionCenter(DEPOT_LOCATION, 1337.0D, sim.getRandomGenerator());
         sim.register(depot);
 
         // create and register the UAVs
@@ -57,13 +64,17 @@ public final class SimGenerator {
             sim.register(uav);
         }
 
-        // create and register the parcels + add them to the depot
-        for (int i = 0; i < 2000; ++i) {
-            Point destination = sim.getModelProvider().getModel(PlaneRoadModel.class).getRandomPosition(sim.getRandomGenerator());
-            DroneParcel parcel = new DroneParcel(DEPOT_LOCATION, destination);
-            sim.register(parcel);
-            depot.addParcel(parcel);
-        }
+        // create a ticklistner that generates parcels, registers them and add them to the depot
+        ParcelGenerator parcelgen = new ParcelGenerator(depot, sim);
+        sim.addTickListener(parcelgen);
+
+
+//        for (int i = 0; i < 2000; ++i) {
+//            Point destination = sim.getModelProvider().getModel(PlaneRoadModel.class).getRandomPosition(sim.getRandomGenerator());
+//            DroneParcel parcel = new DroneParcel(DEPOT_LOCATION, destination);
+//            sim.register(parcel);
+//            depot.addParcel(parcel);
+//        }
 
         System.out.println(sim.getModelProvider().getModel(PlaneRoadModel.class).getObjects().size());
 
@@ -71,4 +82,6 @@ public final class SimGenerator {
     }
 
 }
+
+
 

@@ -13,6 +13,9 @@ import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.*;
 import com.google.common.base.Optional;
+import communication.MessageType;
+import communication.NewParcelMessage;
+import org.apache.commons.math3.random.RandomGenerator;
 
 import java.util.*;
 
@@ -21,20 +24,29 @@ public class DistributionCenter extends Depot implements CommUser {
 
     private Deque<DroneParcel> availableParcels = new LinkedList<>();
     private Optional<CommDevice> commDevice;
-    private static final double RANGE = 6.0D;
+    private RandomGenerator rnd;
+    private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
 
-    DistributionCenter(Point position, double capacity) {
+    public DistributionCenter(Point position, double capacity, RandomGenerator rnd) {
         super(position);
         this.setCapacity(capacity);
         this.commDevice = Optional.absent();
+        this.rnd = rnd;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
     }
 
     public void addParcel(DroneParcel p) {
-        this.availableParcels.add(p);
+        if (this.commDevice.isPresent()) {
+            this.availableParcels.add(p);
+            CommDevice device = this.commDevice.get();
+            device.broadcast(new NewParcelMessage(MessageType.NEW_PARCEL));
+        }
+        else {
+            throw new IllegalStateException("No commDevice configured in the depot");
+        }
     }
 
     public DroneParcel getRandomParcel() {

@@ -10,7 +10,7 @@ public class NewParcelMessage implements MessageContents {
 
     private MessageType type;
 
-    NewParcelMessage(MessageType type) {
+    public NewParcelMessage(MessageType type) {
         this.type = type;
     }
 

@@ -8,7 +8,7 @@ import com.github.rinde.rinsim.geom.Point;
 /**
  * Created by anthony on 5/11/17.
  */
-class DroneParcel extends Parcel {
+public class DroneParcel extends Parcel {
     public DroneParcel(Point source, Point destination) {
         super(Parcel.builder(source, destination).buildDTO());
     }
