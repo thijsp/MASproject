@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import javax.swing.text.html.Option;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -29,21 +30,21 @@ public class UAV extends Vehicle implements CommUser {
     private static final int CAPACITY = 1;
     private RandomGenerator rnd;
     private Optional<DroneParcel> parcel;
-    private DistributionCenter depot;
+    //private DistributionCenter depot;
     private Optional<CommDevice> commDevice;
     private State state = State.IDLE;
 
-    public UAV(RandomGenerator rnd, DistributionCenter depot) {
+    public UAV(RandomGenerator rnd) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(SPEED).build());
         this.rnd = rnd;
-        this.depot = depot;
+        //this.depot = depot;
         this.commDevice = Optional.absent();
 
     }
 
-    public DistributionCenter getDepot(){
-        return this.depot;
-    }
+//    public DistributionCenter getDepot(){
+//        return this.depot;
+//    }
 
     private void setState(State state) {
         if (!this.satisfiesPreconditions(state)) {
@@ -54,7 +55,7 @@ public class UAV extends Vehicle implements CommUser {
 
     private boolean satisfiesPreconditions(State state) {
         if (state.equals(State.PICKING)) {
-            return (!this.parcel.isPresent());
+            return (this.parcel.isPresent());
         }
         if (state.equals(State.DELIVERING)) {
             return this.parcel.isPresent();
@@ -82,7 +83,7 @@ public class UAV extends Vehicle implements CommUser {
 
     private void doNextMove(RoadModel rm, PDPModel pm, TimeLapse time) {
         Point pos = rm.getPosition(this);
-        Point depotPos = rm.getPosition(this.getDepot());
+        //Point depotPos = rm.getPosition(this.getDepot());
 
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in UAV"); }
 
@@ -123,9 +124,11 @@ public class UAV extends Vehicle implements CommUser {
 
     private void pickupParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
         Point pos = rm.getPosition(this);
-        Point depotPos = rm.getPosition(this.getDepot());
+        //Point depotPos = rm.getPosition(this.getDepot());
+        Point depotPos = this.parcel.get().getPickupLocation();
         if (pos.equals(depotPos)) {
-            DroneParcel parcel = this.depot.getRandomParcel();
+            DistributionCenter parcelDepot = this.parcel.get().getDepot();
+            DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
             pm.pickup(this, parcel, time);
             assert rm.containsObject(parcel);
             this.parcel = Optional.of(parcel);
@@ -144,19 +147,21 @@ public class UAV extends Vehicle implements CommUser {
         if(!messages.isEmpty()) {
             Message message = messages.get(0);
             MessageContent content = (MessageContent) message.getContents();
-            if (content.getType().equals(MessageType.NEW_PARCEL)) {
-                NewParcelMessage parcelMessage = (NewParcelMessage) content;
-                this.handleNewParcel(rm, pm, time, parcelMessage.getAuction());
+            NewParcelMessage parcelMessage = (NewParcelMessage) content;
+            Auction auction = parcelMessage.getAuction();
+            if (auction.isOpen()) {
+                this.handleNewParcel(rm, pm, time, auction);
             }
         }
     }
 
     private void handleNewParcel(RoadModel rm, PDPModel pm, TimeLapse time, Auction auction) {
         CommDevice device = this.commDevice.get();
-        Double deliveryTime = this.calculateDeliveryTime(auction.getParcel());
+        DroneParcel parcel = auction.getParcel();
+        Double deliveryTime = this.calculateDeliveryTime(parcel);
         Bid bid = new Bid(this, deliveryTime);
         auction.addBid(bid);
-        device.send(new BidMessage(auction, deliveryTime), this.getDepot());
+        device.send(new BidMessage(auction, deliveryTime), parcel.getDepot() );
         this.setState(State.IN_AUCTION);
     }
 
@@ -171,7 +176,9 @@ public class UAV extends Vehicle implements CommUser {
             if (result) {
                 DistributionCenter depot = content.getAuction().getModerator();
                 Point depotPos = rm.getPosition(depot);
+                this.parcel = Optional.of(content.getAuction().getParcel());
                 this.setState(State.PICKING);
+                content.getAuction().close();
                 rm.moveTo(this, depotPos, time);
             } else {
                 this.setState(State.IDLE);

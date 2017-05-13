@@ -15,11 +15,13 @@ public class Auction {
     private DroneParcel parcel;
     private List<Bid> bids;
     private DistributionCenter moderator;
+    private boolean open;
 
     public Auction(DroneParcel parcel, DistributionCenter moderator) {
         this.parcel = parcel;
         this.moderator = moderator;
         this.bids = new ArrayList<>();
+        this.open = true;
     }
 
     public DroneParcel getParcel() {
@@ -28,6 +30,10 @@ public class Auction {
 
     public DistributionCenter getModerator() {
         return this.moderator;
+    }
+
+    public boolean isOpen() {
+        return open;
     }
 
     public List<UAV> getParticipants() {
@@ -53,6 +59,10 @@ public class Auction {
         }
         return smallestBid;
 
+    }
+
+    public void close() {
+        this.open = false;
     }
 
 
