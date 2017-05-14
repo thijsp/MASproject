@@ -104,6 +104,9 @@ public class UAV extends Vehicle implements CommUser {
         else if (this.state.equals(DroneState.NO_SERVICE)) {
             this.goCharge(time);
         }
+        else if (this.state.equals(DroneState.CHARGING)) {
+            this.charge();
+        }
         else if (this.state.equals(DroneState.IDLE)) {
             this.dealWithAuctions();
         }
@@ -184,6 +187,16 @@ public class UAV extends Vehicle implements CommUser {
             List<Point> chargePath = this.getPathToNearestChargeStation(this.getPosition().get());
             Point chargeLoc = chargePath.get(chargePath.size() - 1);
             this.fly(chargeLoc, time);
+        }
+    }
+
+    private void charge() {
+        Battery battery = this.getMotor().getPowerSource();
+        if (battery.getChargeRate() < 1.0) {
+            battery.charge();
+        }
+        else {
+            this.setState(DroneState.IDLE);
         }
     }
 

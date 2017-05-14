@@ -10,12 +10,14 @@ public class Battery extends Accessory {
     private final double capacity; // in Ws
     private double charge; // in Ws
     private BatteryConstraint constraint;
+    private final double chargingPower; // in Ws
 
     public Battery(Double capacity) {
         super();
         this.capacity = capacity;
         this.charge = capacity;
         this.constraint = new BatteryConstraint(this);
+        this.chargingPower = capacity/500;
     }
 
     public double getCapacity() {
@@ -47,5 +49,15 @@ public class Battery extends Accessory {
     public boolean enoughChargeFor(double plannedConsumption) {
         double newCharge = this.charge - plannedConsumption;
         return this.getConstraint().isAllowedCharge(newCharge);
+    }
+
+    public void charge() {
+        double newCharge = this.charge + this.chargingPower;
+        if (newCharge >= this.capacity) {
+            this.charge = this.capacity;
+        }
+        else {
+            this.charge = newCharge;
+        }
     }
 }
