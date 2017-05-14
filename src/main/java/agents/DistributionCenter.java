@@ -34,6 +34,8 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     private static final double RELIABILITY = 1.0D;
     private List<Auction> auctions;
     private ContractNet cnet;
+    private final double updateFreq = 10.0D;
+    private double lastUpdated;
 
     public DistributionCenter(Point position, double capacity, RandomGenerator rnd) {
         super(position);
@@ -42,6 +44,18 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         this.rnd = rnd;
         this.auctions = new ArrayList<>();
         this.cnet = new StatContractNet();
+        this.lastUpdated = 0.0;
+    }
+
+    @Override
+    public void tick(TimeLapse timeLapse) {
+        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
+        this.checkMessages();
+        if (this.lastUpdated > this.updateFreq) {
+            this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
+            this.lastUpdated = 0.0;
+        }
+        this.lastUpdated++;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
@@ -87,13 +101,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     public void setCommDevice(CommDeviceBuilder commDeviceBuilder) {
         commDeviceBuilder.setMaxRange(this.RANGE);
         this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
-    }
-
-    @Override
-    public void tick(TimeLapse timeLapse) {
-        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
-        this.checkMessages();
-        this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
     }
 
     private List<Auction> getUnactiveAuctions() {
