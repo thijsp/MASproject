@@ -5,5 +5,5 @@ package agents;
  */
 public enum DroneState {
 
-    IDLE, DELIVERING, PICKING, IN_AUCTION
+    IDLE, DELIVERING, PICKING, IN_AUCTION, CHARGING, NO_SERVICE
 }

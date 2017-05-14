@@ -38,14 +38,11 @@ public class StatContractNet extends ContractNet {
     }
 
     public boolean placeBid(Auction auction, UAV bidder) {
-        if (auction.isOpen()) {
-            DroneParcel parcel = auction.getParcel();
-            double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
-            Bid bid = new Bid(bidder, delTime, auction);
-            bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
-            return true;
-        }
-        return false;
+        DroneParcel parcel = auction.getParcel();
+        double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
+        Bid bid = new Bid(bidder, delTime, auction);
+        bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
+        return true;
     }
 
     public void moderateAuction(Auction auction, DistributionCenter moderator) {
@@ -82,14 +79,26 @@ public class StatContractNet extends ContractNet {
 
     public DroneState bidOnAvailableAuction(DroneState state, List<Auction> auctions, UAV bidder) {
         if (state.equals(DroneState.IDLE)) {
+            DroneState proposedState = DroneState.IDLE;
             boolean placedBid = false;
             int i = 0;
+            List<Auction> handledAuctions = new ArrayList<>();
             while (!placedBid & i < auctions.size()) {
                 Auction auction = auctions.get(i);
-                placedBid = this.placeBid(auction, bidder);
+                if (!handledAuctions.contains(auction)) {
+                    if (auction.isOpen()) {
+                        if (bidder.wantsToBid(auction.getParcel())) {
+                            proposedState = DroneState.IN_AUCTION;
+                            placedBid = this.placeBid(auction, bidder);
+                        } else {
+                            proposedState = DroneState.NO_SERVICE;
+                        }
+                    }
+                    handledAuctions.add(auction);
+                }
                 i++;
             }
-            return placedBid ? DroneState.IN_AUCTION : DroneState.IDLE;
+            return proposedState;
         }
         assert state.equals(DroneState.IN_AUCTION);
         return state;

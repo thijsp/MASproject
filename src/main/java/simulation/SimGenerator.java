@@ -26,15 +26,17 @@ import org.apache.commons.math3.random.RandomGenerator;
 import java.util.ArrayList;
 
 public final class SimGenerator {
-    static final double MIN_SPEED = 5000.0D;
-    static final double MAX_SPEED = 8000.0D;
+    static final double MIN_SPEED = 10.0D;
+    static final double MAX_SPEED = 30.0D;
+    static final double BAT_CAPACITY = 3600 * 300.0D;
+    static final double MOT_POWER = 130.0;
 
     static final Point MIN_POINT = new Point(-10.0D, -10.0D);
     static final Point MAX_POINT = new Point(10.0D, 10.0D);
     static final long TICK_LENGTH = 1000L;
     static final long RANDOM_SEED = 123L;
     static final int NUM_VEHICLES = 200;
-    static final int TEST_SPEEDUP = 26;
+    static final int TEST_SPEEDUP = 30;
     static final long TEST_STOP_TIME = 60000000L;
 
     static final int DEPOTS = 1;
@@ -79,7 +81,7 @@ public final class SimGenerator {
         // create and register the UAVs
         for(int i = 0; i < UAVS; ++i) {
             double speed = getRandomspeed(sim.getRandomGenerator(), MAX_SPEED, MIN_SPEED);
-            UAV uav = new UAV(sim.getRandomGenerator(), speed);
+            UAV uav = new UAV(sim.getRandomGenerator(), speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
 
@@ -96,7 +98,6 @@ public final class SimGenerator {
     public static double getRandomspeed(RandomGenerator rnd, double minSpeed, double maxSpeed) {
         double random = rnd.nextDouble();
         double speed = minSpeed + (maxSpeed - minSpeed) * random;
-        System.out.println(speed);
         return speed;
     }
 

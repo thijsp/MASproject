@@ -4,6 +4,8 @@ package agents;
  * Created by thijspeirelinck on 11/05/2017.
  */
 
+import agents.accessories.Battery;
+import agents.accessories.Motor;
 import cnet.Auction;
 import cnet.ContractNet;
 import cnet.StatContractNet;
@@ -22,24 +24,35 @@ import org.apache.commons.math3.random.RandomGenerator;
 import javax.measure.Measure;
 import javax.measure.quantity.Length;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 public class UAV extends Vehicle implements CommUser {
     private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
     private static final int CAPACITY = 1;
     private RandomGenerator rnd;
+    private final double maxSpeed;
 
     private Optional<DroneParcel> parcel;
     private Optional<CommDevice> commDevice;
     private DroneState state = DroneState.IDLE;
     private ContractNet cnet;
+    private Motor motor;
 
-    public UAV(RandomGenerator rnd, Double speed) {
+    public UAV(RandomGenerator rnd, Double speed, Double batteryCapacity, Double motorPower, Double maxSpeed) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).build());
         this.rnd = rnd;
         this.commDevice = Optional.absent();
         this.cnet = new StatContractNet();
+        this.maxSpeed = maxSpeed;
+        this.motor = new Motor(this, new Battery(batteryCapacity), motorPower);
+
+    }
+
+    public double getMaxSpeed() {
+        return this.maxSpeed;
     }
 
     private void setState(DroneState state) {
@@ -60,6 +73,9 @@ public class UAV extends Vehicle implements CommUser {
             return (!this.parcel.isPresent());
         }
         if (state.equals(DroneState.IN_AUCTION)) {
+            return (!this.parcel.isPresent());
+        }
+        if (state.equals(DroneState.NO_SERVICE)) {
             return (!this.parcel.isPresent());
         }
         return true;
@@ -85,6 +101,9 @@ public class UAV extends Vehicle implements CommUser {
         else if (this.state.equals(DroneState.IN_AUCTION)) {
             this.dealWithAuctions();
         }
+        else if (this.state.equals(DroneState.NO_SERVICE)) {
+            this.goCharge(time);
+        }
         else if (this.state.equals(DroneState.IDLE)) {
             this.dealWithAuctions();
         }
@@ -98,7 +117,8 @@ public class UAV extends Vehicle implements CommUser {
             this.parcel = Optional.absent();
             this.setState(DroneState.IDLE);
         } else {
-            rm.moveTo(this, this.parcel.get().getDeliveryLocation(), time);
+            Point destLoc = this.parcel.get().getDeliveryLocation();
+            this.fly(destLoc, time);
         }
     }
 
@@ -117,8 +137,15 @@ public class UAV extends Vehicle implements CommUser {
             this.setState(DroneState.DELIVERING);
         }
         else {
-            rm.moveTo(this, depotPos, time);
+            this.fly(depotPos, time);
         }
+    }
+
+    private void fly(Point destLoc, TimeLapse time) {
+        RoadModel rm = this.getRoadModel();
+        double flyTime = time.getTickLength()/ (1000); // in sec
+        this.getMotor().fly(flyTime, this.getSpeed());
+        rm.moveTo(this, destLoc, time);
     }
 
     private void dealWithAuctions() {
@@ -140,9 +167,24 @@ public class UAV extends Vehicle implements CommUser {
         }
     }
 
-    public void sendDirectMessage(TypedMessage content, CommUser recipiant) {
-        CommDevice device = this.commDevice.get();
-        device.send(content, recipiant);
+    private void goCharge(TimeLapse time) {
+        RoadModel rm = this.getRoadModel();
+        Iterator<DistributionCenter> it = rm.getObjectsOfType(DistributionCenter.class).iterator();
+        boolean atChargingStation = false;
+        while (it.hasNext() & !atChargingStation) {
+            DistributionCenter chargingStation = it.next();
+            if (chargingStation.getPosition().get().equals(this.getPosition().get())) {
+                atChargingStation = true;
+            }
+        }
+        if (atChargingStation) {
+            this.setState(DroneState.CHARGING);
+        }
+        else {
+            List<Point> chargePath = this.getPathToNearestChargeStation(this.getPosition().get());
+            Point chargeLoc = chargePath.get(chargePath.size() - 1);
+            this.fly(chargeLoc, time);
+        }
     }
 
     public Double calculateDeliveryTime(Point loc) {
@@ -152,16 +194,6 @@ public class UAV extends Vehicle implements CommUser {
         double pathLength = distanceOfPath.getValue();
         double speed = this.getSpeed();
         return pathLength / speed;
-    }
-
-    public List<TypedMessage> readMessageContents() {
-        CommDevice device = this.commDevice.get();
-        List<TypedMessage> contents = new ArrayList<>();
-        if (device.getUnreadCount() != 0) {
-            ImmutableList<Message> messages = device.getUnreadMessages();
-            contents = this.getCnet().getMessageContent(messages);
-        }
-        return contents;
     }
 
     public List<Auction> getAvailableAuctions(List<TypedMessage> messages) {
@@ -185,6 +217,22 @@ public class UAV extends Vehicle implements CommUser {
         return auctionResultMessages;
     }
 
+    public List<TypedMessage> readMessageContents() {
+        CommDevice device = this.commDevice.get();
+        List<TypedMessage> contents = new ArrayList<>();
+        if (device.getUnreadCount() != 0) {
+            ImmutableList<Message> messages = device.getUnreadMessages();
+            contents = this.getCnet().getMessageContent(messages);
+        }
+        return contents;
+    }
+
+
+    public void sendDirectMessage(TypedMessage content, CommUser recipiant) {
+        CommDevice device = this.commDevice.get();
+        device.send(content, recipiant);
+    }
+
     @Override
     public Optional<Point> getPosition() {
         return ((RoadModel)this.getRoadModel()).containsObject(this)? Optional.of(this.getRoadModel().getPosition(this)) : Optional.<Point>absent();
@@ -200,6 +248,42 @@ public class UAV extends Vehicle implements CommUser {
         return this.cnet;
     }
 
+    public Motor getMotor() { return this.motor; }
+
+    public boolean wantsToBid(DroneParcel parcel) {
+        Point delLoc = parcel.getDeliveryLocation();
+        Point pickupLoc = parcel.getPickupLocation();
+        RoadModel rm = this.getRoadModel();
+        List<Point> pathToPickup = rm.getShortestPathTo(this, pickupLoc);
+        List<Point> pathToDelivery = rm.getShortestPathTo(pickupLoc, delLoc);
+        List<Point> pathToDepot = this.getPathToNearestChargeStation(delLoc);
+        List<Point> fullPath = new ArrayList<>();
+        fullPath.addAll(pathToPickup);
+        fullPath.addAll(pathToDelivery);
+        fullPath.addAll(pathToDepot);
+        Double distance = rm.getDistanceOfPath(fullPath).getValue();
+        return this.getMotor().possibleJourney(distance, this.getSpeed());
+    }
+
+    public List<Point> getPathToNearestChargeStation(Point loc) {
+        RoadModel rm = this.getRoadModel();
+        Iterator<DistributionCenter> it = rm.getObjectsOfType(DistributionCenter.class).iterator();
+        DistributionCenter depot = it.next();
+        Point depotPos = depot.getPosition().get();
+        List<Point> shortestPath = rm.getShortestPathTo(loc, depotPos);
+        Double distance = rm.getDistanceOfPath(shortestPath).getValue();
+        while (it.hasNext()) {
+            DistributionCenter nextDepot = it.next();
+            Point nextDepotPos = nextDepot.getPosition().get();
+            List<Point> nextShortesPath = rm.getShortestPathTo(loc, nextDepotPos);
+            Double nextDistance = rm.getDistanceOfPath(nextShortesPath).getValue();
+            if (nextDistance < distance) {
+                distance = nextDistance;
+                shortestPath = nextShortesPath;
+            }
+        }
+        return shortestPath;
+    }
 }
 
 
