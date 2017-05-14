@@ -5,11 +5,11 @@ import com.github.rinde.rinsim.core.model.comm.MessageContents;
 /**
  * Created by thijspeirelinck on 13/05/2017.
  */
-public class MessageContent implements MessageContents {
+public class TypedMessage implements MessageContents {
 
     private MessageType type;
 
-    public MessageContent() {}
+    public TypedMessage() {}
 
     public MessageType getType() {
         return this.type;

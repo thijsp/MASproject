@@ -2,6 +2,7 @@ package cnet;
 
 import agents.DistributionCenter;
 import agents.DroneParcel;
+import agents.DroneState;
 import agents.UAV;
 import com.google.common.base.Optional;
 import communication.*;
@@ -36,6 +37,17 @@ public class StatContractNet extends ContractNet {
         return false;
     }
 
+    public boolean placeBid(Auction auction, UAV bidder) {
+        if (auction.isOpen()) {
+            DroneParcel parcel = auction.getParcel();
+            double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
+            Bid bid = new Bid(bidder, delTime, auction);
+            bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
+            return true;
+        }
+        return false;
+    }
+
     public void moderateAuction(Auction auction, DistributionCenter moderator) {
         UAV winner = auction.getBestBid().getBidder();
         List<UAV> participants = auction.getParticipants();
@@ -51,12 +63,12 @@ public class StatContractNet extends ContractNet {
      * @return an optional including the auction that was chosen for the UAV
      *          or absent if no auction was chosen
      */
-    public Optional<DroneParcel> selectAuction(List<Auction> auctions, UAV bidder) {
+    private Optional<DroneParcel> selectAuction(List<Auction> auctions, UAV bidder) {
+        assert (auctions.size() == 1); // static contract net, UAV can only be involved in one auction
         for (Auction auction : auctions) {
-            if (auction.isOpen()) {
-                bidder.sendDirectMessage(new AcceptanceMessage(auction, true),auction.getModerator());
-                return Optional.of(auction.getParcel());
-            }
+            assert (auction.isOpen()); // in the case of static contract net, this should always be true
+            bidder.sendDirectMessage(new AcceptanceMessage(auction, true),auction.getModerator());
+            return Optional.of(auction.getParcel());
         }
         return Optional.absent();
     }
@@ -66,6 +78,38 @@ public class StatContractNet extends ContractNet {
             DistributionCenter moderator = auction.getModerator();
             moderator.sendBroadcastMessage(new NewParcelMessage(auction));
         }
+    }
+
+    public DroneState bidOnAvailableAuction(DroneState state, List<Auction> auctions, UAV bidder) {
+        if (state.equals(DroneState.IDLE)) {
+            boolean placedBid = false;
+            int i = 0;
+            while (!placedBid & i < auctions.size()) {
+                Auction auction = auctions.get(i);
+                placedBid = this.placeBid(auction, bidder);
+                i++;
+            }
+            return placedBid ? DroneState.IN_AUCTION : DroneState.IDLE;
+        }
+        assert state.equals(DroneState.IN_AUCTION);
+        return state;
+    }
+
+    public Optional<DroneParcel> defineAuctionResult(DroneState state, List<AuctionResultMessage> results, UAV bidder) {
+        List<Auction> auctions = new ArrayList<>();
+        if (state.equals(DroneState.IDLE) || results.isEmpty()) {return Optional.absent(); }
+        else if (state.equals(DroneState.IN_AUCTION)) {
+            for (AuctionResultMessage message : results) {
+                boolean lost = (!message.isAccepted());
+                if (!lost) {
+                    auctions.add(message.getAuction());
+                }
+                else {
+                    return Optional.absent();
+                }
+            }
+        }
+        return this.selectAuction(auctions, bidder); // if an auction was won, return the parcel of this auction
     }
 
 

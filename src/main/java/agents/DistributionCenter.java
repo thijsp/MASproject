@@ -56,13 +56,13 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         this.auctions.add(auction);
     }
 
-    public void sendBroadcastMessage(MessageContent content) {
+    public void sendBroadcastMessage(TypedMessage content) {
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in the depot");}
         CommDevice device = this.commDevice.get();
         device.broadcast(content);
     }
     
-    public void sendDirectMessage(MessageContent content, CommUser recipient) {
+    public void sendDirectMessage(TypedMessage content, CommUser recipient) {
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in the depot");}
         CommDevice device = this.commDevice.get();
         device.send(content, recipient);
@@ -107,10 +107,10 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     }
 
     private void checkMessages() {
-        List<MessageContent> messages = this.readMessages();
+        List<TypedMessage> messages = this.readMessages();
         List<Auction> auctions = new ArrayList<>();
         for (int i = 0; i < messages.size(); i++) {
-            MessageContent content = messages.get(i);
+            TypedMessage content = messages.get(i);
             if (content.getType().equals(MessageType.BID)) {
                 BidMessage message = (BidMessage) content;
                 auctions.add(message.getAuction());
@@ -136,9 +136,9 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     @Override
     public void afterTick(TimeLapse timeLapse) {}
 
-    private List<MessageContent> readMessages() {
+    private List<TypedMessage> readMessages() {
         CommDevice device = this.commDevice.get();
-        List<MessageContent> contents = new ArrayList<>();
+        List<TypedMessage> contents = new ArrayList<>();
         if (device.getUnreadCount() != 0) {
             ImmutableList<Message> messages = device.getUnreadMessages();
             contents = this.getCnet().getMessageContent(messages);

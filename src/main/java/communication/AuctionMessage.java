@@ -5,7 +5,7 @@ import cnet.Auction;
 /**
  * Created by thijspeirelinck on 13/05/2017.
  */
-public class AuctionMessage extends MessageContent {
+public class AuctionMessage extends TypedMessage {
 
     private Auction auction;
 

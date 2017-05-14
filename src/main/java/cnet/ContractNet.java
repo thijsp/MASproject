@@ -2,12 +2,13 @@ package cnet;
 
 import agents.DistributionCenter;
 import agents.DroneParcel;
+import agents.DroneState;
 import agents.UAV;
 import com.github.rinde.rinsim.core.model.comm.Message;
 import com.google.common.base.Optional;
 import communication.AuctionMessage;
-import communication.MessageContent;
-import communication.MessageType;
+import communication.AuctionResultMessage;
+import communication.TypedMessage;
 import communication.NewParcelMessage;
 
 import java.util.ArrayList;
@@ -43,7 +44,9 @@ public class ContractNet {
 
     public void addAuction(DroneParcel parcel, DistributionCenter moderator) {}
 
-    public Optional<DroneParcel> selectAuction(List<Auction> auctions, UAV bidder) { return Optional.absent(); }
+    private Optional<DroneParcel> selectAuction(List<Auction> auctions, UAV bidder) { return Optional.absent(); }
+
+    public Optional<DroneParcel> defineAuctionResult(DroneState state, List<AuctionResultMessage> results, UAV bidder) {return Optional.absent();}
 
     public Auction createAuction(DroneParcel parcel, DistributionCenter moderator) {
         Auction auction = new Auction(parcel, moderator);
@@ -52,9 +55,12 @@ public class ContractNet {
     }
 
     public void sendAuctionMessage(DistributionCenter moderator, Auction auction) {
-        MessageContent content = new NewParcelMessage(auction);
+        TypedMessage content = new NewParcelMessage(auction);
         moderator.sendBroadcastMessage(content);
     }
+
+    public DroneState bidOnAvailableAuction(DroneState state, List<Auction> auctions, UAV bidder) {return state;}
+
 
     public List<DistributionCenter> getDepots() {
         return depots;
@@ -74,12 +80,12 @@ public class ContractNet {
         return false;
     }
 
-    public List<MessageContent> getMessageContent(List<Message> messages) {
+    public List<TypedMessage> getMessageContent(List<Message> messages) {
         Iterator<Message> mIt = messages.iterator();
-        List<MessageContent> contents = new ArrayList<>();
+        List<TypedMessage> contents = new ArrayList<>();
         while (mIt.hasNext()) {
             Message message = mIt.next();
-            MessageContent content = (MessageContent)message.getContents();
+            TypedMessage content = (TypedMessage)message.getContents();
             contents.add(content);
         }
         return contents;
