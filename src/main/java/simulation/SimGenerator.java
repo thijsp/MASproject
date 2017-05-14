@@ -39,7 +39,7 @@ public final class SimGenerator {
     static final int TEST_SPEEDUP = 30;
     static final long TEST_STOP_TIME = 60000000L;
 
-    static final int DEPOTS = 1;
+    static final int DEPOTS = 4;
     static final int UAVS = 4;
     static final int MAX_PARCELS = 100;
 

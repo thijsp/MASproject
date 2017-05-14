@@ -55,7 +55,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
             this.lastUpdated = 0.0;
         }
-        this.lastUpdated++;
+        this.lastUpdated += 1;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
