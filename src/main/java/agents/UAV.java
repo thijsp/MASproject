@@ -19,11 +19,12 @@ import com.google.common.collect.ImmutableList;
 import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import javax.measure.Measure;
+import javax.measure.quantity.Length;
 import java.util.ArrayList;
 import java.util.List;
 
 public class UAV extends Vehicle implements CommUser {
-    private static final double SPEED = 3000.0D;
     private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
     private static final int CAPACITY = 1;
@@ -34,13 +35,11 @@ public class UAV extends Vehicle implements CommUser {
     private DroneState state = DroneState.IDLE;
     private ContractNet cnet;
 
-    public UAV(RandomGenerator rnd) {
-        super(VehicleDTO.builder().capacity(CAPACITY).speed(SPEED).build());
+    public UAV(RandomGenerator rnd, Double speed) {
+        super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).build());
         this.rnd = rnd;
-        //this.depot = depot;
         this.commDevice = Optional.absent();
         this.cnet = new StatContractNet();
-
     }
 
     private void setState(DroneState state) {
@@ -71,20 +70,17 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     protected void tickImpl(TimeLapse time) {
-        RoadModel rm = this.getRoadModel();
-        PDPModel pm = this.getPDPModel();
-
-        this.doNextMove(rm, pm, time);
+        this.doNextMove(time);
     }
 
-    private void doNextMove(RoadModel rm, PDPModel pm, TimeLapse time) {
+    private void doNextMove(TimeLapse time) {
         if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in UAV"); }
 
         else if(this.state.equals(DroneState.DELIVERING)) {
-            this.deliverParcel(rm, pm, time);
+            this.deliverParcel(time);
         }
         else if (this.state.equals(DroneState.PICKING)) {
-            this.pickupParcel(rm, pm, time);
+            this.pickupParcel(time);
         }
         else if (this.state.equals(DroneState.IN_AUCTION)) {
             this.dealWithAuctions();
@@ -94,18 +90,9 @@ public class UAV extends Vehicle implements CommUser {
         }
     }
 
-    @Override
-    public Optional<Point> getPosition() {
-        return ((RoadModel)this.getRoadModel()).containsObject(this)? Optional.of(this.getRoadModel().getPosition(this)) : Optional.<Point>absent();
-    }
-
-    @Override
-    public void setCommDevice(CommDeviceBuilder commDeviceBuilder) {
-        commDeviceBuilder.setMaxRange(this.RANGE);
-        this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
-    }
-
-    private void deliverParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
+    private void deliverParcel(TimeLapse time) {
+        RoadModel rm = this.getRoadModel();
+        PDPModel pm = this.getPDPModel();
         if (rm.getPosition(this).equals(this.parcel.get().getDeliveryLocation())) {
             pm.deliver(this, this.parcel.get(), time);
             this.parcel = Optional.absent();
@@ -115,7 +102,10 @@ public class UAV extends Vehicle implements CommUser {
         }
     }
 
-    private void pickupParcel(RoadModel rm, PDPModel pm, TimeLapse time) {
+    private void pickupParcel(TimeLapse time) {
+        assert (this.state.equals(DroneState.PICKING));
+        RoadModel rm = this.getRoadModel();
+        PDPModel pm = this.getPDPModel();
         Point pos = rm.getPosition(this);
         Point depotPos = this.parcel.get().getPickupLocation();
         if (pos.equals(depotPos)) {
@@ -156,8 +146,12 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     public Double calculateDeliveryTime(Point loc) {
-        //test: random delivery time
-        return this.rnd.nextDouble();
+        RoadModel rm = this.getRoadModel();
+        List<Point> shortestPathTo = rm.getShortestPathTo(this, loc);
+        Measure<Double, Length> distanceOfPath = rm.getDistanceOfPath(shortestPathTo); // length in km, speed in km/h
+        double pathLength = distanceOfPath.getValue();
+        double speed = this.getSpeed();
+        return pathLength / speed;
     }
 
     public List<TypedMessage> readMessageContents() {
@@ -168,10 +162,6 @@ public class UAV extends Vehicle implements CommUser {
             contents = this.getCnet().getMessageContent(messages);
         }
         return contents;
-    }
-
-    public ContractNet getCnet() {
-        return this.cnet;
     }
 
     public List<Auction> getAvailableAuctions(List<TypedMessage> messages) {
@@ -193,6 +183,21 @@ public class UAV extends Vehicle implements CommUser {
             }
         }
         return auctionResultMessages;
+    }
+
+    @Override
+    public Optional<Point> getPosition() {
+        return ((RoadModel)this.getRoadModel()).containsObject(this)? Optional.of(this.getRoadModel().getPosition(this)) : Optional.<Point>absent();
+    }
+
+    @Override
+    public void setCommDevice(CommDeviceBuilder commDeviceBuilder) {
+        commDeviceBuilder.setMaxRange(this.RANGE);
+        this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
+    }
+
+    public ContractNet getCnet() {
+        return this.cnet;
     }
 
 }
