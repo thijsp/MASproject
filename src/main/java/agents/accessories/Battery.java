@@ -36,7 +36,7 @@ public class Battery extends Accessory {
         return this.constraint;
     }
 
-    public double getChargeRate() {
+    public double getChargePercentage() {
         return this.getCharge()/this.getCapacity();
     }
 
@@ -52,12 +52,6 @@ public class Battery extends Accessory {
     }
 
     public void charge() {
-        double newCharge = this.charge + this.chargingPower;
-        if (newCharge >= this.capacity) {
-            this.charge = this.capacity;
-        }
-        else {
-            this.charge = newCharge;
-        }
+        this.charge = Math.min(this.capacity, this.charge + this.chargingPower);
     }
 }

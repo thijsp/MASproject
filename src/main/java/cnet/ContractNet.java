@@ -5,11 +5,11 @@ import agents.DroneParcel;
 import agents.DroneState;
 import agents.UAV;
 import com.github.rinde.rinsim.core.model.comm.Message;
-import com.google.common.base.Optional;
 import communication.AuctionMessage;
 import communication.AuctionResultMessage;
 import communication.TypedMessage;
 import communication.NewParcelMessage;
+import com.google.common.base.Optional;
 
 import java.util.ArrayList;
 import java.util.Iterator;

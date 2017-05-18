@@ -4,8 +4,8 @@ import agents.DistributionCenter;
 import agents.DroneParcel;
 import agents.DroneState;
 import agents.UAV;
-import com.google.common.base.Optional;
 import communication.*;
+import com.google.common.base.Optional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,18 +25,6 @@ public class StatContractNet extends ContractNet {
         super.sendAuctionMessage(moderator, auction);
     }
 
-    public boolean placeBid(AuctionMessage content, UAV bidder) {
-        Auction auction = content.getAuction();
-        if (auction.isOpen()) {
-            DroneParcel parcel = auction.getParcel();
-            double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
-            Bid bid = new Bid(bidder, delTime, auction);
-            bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
-            return true;
-        }
-        return false;
-    }
-
     public boolean placeBid(Auction auction, UAV bidder) {
         DroneParcel parcel = auction.getParcel();
         double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
@@ -46,7 +34,10 @@ public class StatContractNet extends ContractNet {
     }
 
     public void moderateAuction(Auction auction, DistributionCenter moderator) {
-        UAV winner = auction.getBestBid().getBidder();
+        Optional<Bid> winning_bid = auction.getBestBid();
+        assert winning_bid.isPresent();
+
+        UAV winner = winning_bid.get().getBidder();
         List<UAV> participants = auction.getParticipants();
         for (UAV participant : participants) {
             AuctionResultMessage message = new AuctionResultMessage(auction, participant.equals(winner) );
@@ -106,8 +97,10 @@ public class StatContractNet extends ContractNet {
 
     public Optional<DroneParcel> defineAuctionResult(DroneState state, List<AuctionResultMessage> results, UAV bidder) {
         List<Auction> auctions = new ArrayList<>();
-        if (state.equals(DroneState.IDLE) || results.isEmpty()) {return Optional.absent(); }
-        else if (state.equals(DroneState.IN_AUCTION)) {
+        if (state.equals(DroneState.IDLE) || results.isEmpty())
+            return Optional.absent();
+
+        if (state.equals(DroneState.IN_AUCTION)) {
             for (AuctionResultMessage message : results) {
                 boolean lost = (!message.isAccepted());
                 if (!lost) {
