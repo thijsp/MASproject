@@ -52,10 +52,10 @@ public class Rectangle {
     }
 
     private Line diag1() {
-        return new Line(xMin + MARGIN, yMin + MARGIN, xMax - MARGIN, yMax - MARGIN);
+        return new Line(xMin, yMin, xMax, yMax);
     }
     private Line diag2() {
-        return new Line(xMin + MARGIN, yMax - MARGIN, xMax - MARGIN, yMin + MARGIN);
+        return new Line(xMin, yMax, xMax, yMin);
     }
 
     public boolean contains(Point p) {
