@@ -63,10 +63,12 @@ public class Rectangle {
     }
 
     public boolean intersectsLine(Line l) {
+        Point d = Point.divide(Point.diff(l.end, l.start), 1000_000D);
+        Line l2 = new Line(Point.add(l.start, d), Point.diff(l.end, d));
         return  this.contains(l.start) ||
                 this.contains(l.end) ||
-                Line.intersects(l, this.diag1()) ||
-                Line.intersects(l, this.diag2());
+                Line.intersects(l2, this.diag1()) ||
+                Line.intersects(l2, this.diag2());
         // Arrays.stream(this.getSides()).anyMatch(side -> Line.intersects(side, l));
     }
 
@@ -74,4 +76,5 @@ public class Rectangle {
     public String toString() {
         return "[Rectangle " + xMin + "," + xMax + " " + yMin + "," + yMax + "]";
     }
+
 }
