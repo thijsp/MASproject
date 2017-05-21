@@ -23,16 +23,13 @@ import org.apache.commons.math3.random.RandomGenerator;
 
 import javax.measure.Measure;
 import javax.measure.quantity.Length;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class UAV extends Vehicle implements CommUser {
     private static final double RANGE = 20.0D;
     private static final double RELIABILITY = 1.0D;
     private static final int CAPACITY = 1;
-    private RandomGenerator rnd;
     private final double maxSpeed;
 
     private Optional<DroneParcel> parcel;
@@ -41,9 +38,8 @@ public class UAV extends Vehicle implements CommUser {
     private ContractNet cnet;
     private Motor motor;
 
-    public UAV(RandomGenerator rnd, Double speed, Double batteryCapacity, Double motorPower, Double maxSpeed) {
-        super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).build());
-        this.rnd = rnd;
+    public UAV(Point startPos, Double speed, Double batteryCapacity, Double motorPower, Double maxSpeed) {
+        super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).startPosition(startPos).build());
         this.commDevice = Optional.absent();
         this.cnet = new StatContractNet();
         this.maxSpeed = maxSpeed;
@@ -149,7 +145,10 @@ public class UAV extends Vehicle implements CommUser {
         RoadModel rm = this.getRoadModel();
         double flyTime = time.getTickLength()/ (1000); // in sec
         this.getMotor().fly(flyTime, this.getSpeed());
-        rm.moveTo(this, destLoc, time);
+        // rm.moveTo(this, destLoc, time);
+        // TODO cache this somewhere
+        Queue<Point> path = new LinkedList<>(rm.getShortestPathTo(rm.getPosition(this), destLoc));
+        rm.followPath(this, path, time);
     }
 
     private void dealWithAuctions() {
@@ -286,11 +285,11 @@ public class UAV extends Vehicle implements CommUser {
         while (it.hasNext()) {
             DistributionCenter nextDepot = it.next();
             Point nextDepotPos = nextDepot.getPosition().get();
-            List<Point> nextShortesPath = rm.getShortestPathTo(loc, nextDepotPos);
-            Double nextDistance = rm.getDistanceOfPath(nextShortesPath).getValue();
+            List<Point> nextShortestPath = rm.getShortestPathTo(loc, nextDepotPos);
+            Double nextDistance = rm.getDistanceOfPath(nextShortestPath).getValue();
             if (nextDistance < distance) {
                 distance = nextDistance;
-                shortestPath = nextShortesPath;
+                shortestPath = nextShortestPath;
             }
         }
         return shortestPath;
