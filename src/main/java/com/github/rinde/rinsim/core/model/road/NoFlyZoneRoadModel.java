@@ -6,8 +6,11 @@ import com.google.common.collect.ImmutableList;
 import geom.Line;
 import geom.Rectangle;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.util.Pair;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,6 +24,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
     private final ImmutableList<Rectangle> forbiddenZones;
     private final Graph<LengthData> graph;
+     private static HashMap<Pair<Point, Point>, List<Point>> memo = new HashMap<>();
 
     NoFlyZoneRoadModel(NoFlyZoneRMB source) {
         super(source);
@@ -62,7 +66,6 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
     @Override
     public List<Point> getShortestPathTo(Point from, Point to) {
-        System.out.println("Computing shortest path from " + from + " to " + to);
         checkArgument(
                 !isPointForbidden(from),
                 "from may not be in a forbidden zone (%s is in a zone)", from);
@@ -70,9 +73,14 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
                 !isPointForbidden(to),
                 "to may not be in a forbidden zone (%s is in a zone)", to);
 
+        Pair conn = new Pair<Point, Point>(from, to);
+        if (memo.containsKey(conn))
+            return memo.get(conn);
+
         if (!isLineForbidden(from, to)) {
-            System.out.println("Direct connection from " + from + " to " + to);
-            return asList(from, to);
+            List<Point> result = asList(from, to);
+            memo.put(conn, result);
+            return result;
         }
 
         Graph<LengthData> g = new TableGraph<>();
@@ -81,13 +89,16 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
         g.getNodes().stream()
                 .filter(p -> !isLineForbidden(from, p))
+                .filter(p -> !g.hasConnection(from, p))
                 .forEach(p -> g.addConnection(from, p, LengthData.create(Point.distance(from, p))));
         g.getNodes().stream()
                 .filter(p -> !isLineForbidden(p, to))
+                .filter(p -> !g.hasConnection(p, to))
                 .forEach(p -> g.addConnection(p, to, LengthData.create(Point.distance(p, to))));
 
-        System.out.println("Shortest path computed: " + Graphs.shortestPathEuclideanDistance(g, from, to));
-        return Graphs.shortestPathEuclideanDistance(g, from, to);
+        List<Point> result = Graphs.shortestPathEuclideanDistance(g, from, to);
+        memo.put(conn, result);
+        return result;
     }
 
 
@@ -115,6 +126,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
         zones.stream()
                 .flatMap(zone -> Arrays.stream(zone.getSides()))
                 .filter(side -> !intersectsAny(zones, side))
+                .filter(side -> !graph.hasConnection(side.start, side.end))
                 .forEach(side -> {
                     System.out.println("Adding side " + side);
                     LengthData dist = LengthData.create(side.distance());
@@ -133,8 +145,8 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
                 for (Point p : ptsA) {
                     for (Point q : ptsB) {
                         Line conn = new Line(p, q);
-                        if (intersectsAny(zones, conn))
-                            // No direct connection between those endpoints.
+                        if (intersectsAny(zones, conn) || graph.hasConnection(p, q) || p.equals(q))
+                            // No direct connection possible between those endpoints.
                             continue;
                         LengthData dist = LengthData.create(conn.distance());
                         graph.addConnection(p, q, dist);
