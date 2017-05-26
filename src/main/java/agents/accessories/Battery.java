@@ -12,7 +12,7 @@ public class Battery extends Accessory {
     private BatteryConstraint constraint;
     private final double chargingPower; // in Ws
 
-    public Battery(Double capacity) {
+    public Battery(double capacity) {
         super();
         this.capacity = capacity;
         this.charge = capacity;
@@ -28,7 +28,7 @@ public class Battery extends Accessory {
         return charge;
     }
 
-    private void setCharge(Double newCharge) {
+    private void setCharge(double newCharge) {
         this.charge = newCharge;
     }
 

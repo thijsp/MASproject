@@ -23,7 +23,7 @@ public class BatteryConstraint extends ConstraintHandler {
         return this.battery;
     }
 
-    public boolean isSatisfied(Double newChargeRate) {
+    public boolean isSatisfied(double newChargeRate) {
         return newChargeRate > this.getMinChargeRate();
     }
 

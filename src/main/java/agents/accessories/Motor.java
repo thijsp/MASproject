@@ -28,27 +28,27 @@ public class Motor extends Accessory {
         return this.drone;
     }
 
-    public double getPowerUsed(Double speed) {
+    public double getPowerUsed(double speed) {
         double modulation = speed/this.maxSpeed;
         return modulation * this.power;
     }
 
-    public double getConsumedEnergy(Double time, Double speed) {
+    public double getConsumedEnergy(double time, double speed) {
         double consumedPower = this.getPowerUsed(speed);
         return time * consumedPower;
     }
 
-    public void fly(Double travelTime, Double speed) {
+    public void fly(double travelTime, double speed) {
          double consumedEnergy = this.getConsumedEnergy(travelTime, speed);
          this.getPowerSource().discharge(consumedEnergy);
     }
 
-    public boolean canFly(Double travelTime, Double speed) {
+    public boolean canFly(double travelTime, double speed) {
         double consumptionPlanned = this.getConsumedEnergy(travelTime, speed);
         return this.getPowerSource().enoughChargeFor(consumptionPlanned);
     }
 
-    public boolean possibleJourney(Double distance, Double speed) {
+    public boolean possibleJourney(double distance, double speed) {
         double travelTime = distance/speed * 3600; // in sec;
         return this.canFly(travelTime, speed);
     }
