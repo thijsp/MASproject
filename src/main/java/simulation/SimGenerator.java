@@ -23,6 +23,7 @@ import org.eclipse.swt.graphics.RGB;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public final class SimGenerator {
     static final double MIN_SPEED = 10.0D;
@@ -30,15 +31,15 @@ public final class SimGenerator {
     static final double BAT_CAPACITY = 3600 * 300.0D;
     static final double MOT_POWER = 130.0;
 
-    static final Point MIN_POINT = new Point(-10.0D, -10.0D);
+    static final Point MIN_POINT = new Point(0.0D, 0.0D);
     static final Point MAX_POINT = new Point(10.0D, 10.0D);
     static final long TICK_LENGTH = 1000L;
     static final long RANDOM_SEED = 123L;
     static final int TEST_SPEEDUP = 30;
     static final long TEST_STOP_TIME = 60000000L;
 
-    static final int DEPOTS = 4;
-    static final int UAVS = 1;
+    static final int DEPOTS = 3;
+    static final int UAVS = 4;
     static final int MAX_PARCELS = 100;
 
     static final boolean TESTING = true;
@@ -63,9 +64,8 @@ public final class SimGenerator {
             viewBuilder = viewBuilder.withSpeedUp(TEST_SPEEDUP).withAutoClose().withAutoPlay().withSimulatorEndTime(TEST_STOP_TIME);
         }
 
-        List<Rectangle> forbiddenZones = Arrays.asList(
-                new Rectangle(-4.0, 4.0, -4.0, 4.0),
-                new Rectangle(-8.0, 0.0, -2.0, 2.0));
+        List<Rectangle> forbiddenZones = Maze.getSmallMaze().getWalls(MIN_POINT, MAX_POINT).collect(Collectors.toList());
+
         Simulator sim = Simulator.builder().setTickLength(1000L).setRandomSeed(RANDOM_SEED)
                 //.addModel(RoadModelBuilders.plane().withMinPoint(MIN_POINT).withMaxPoint(MAX_POINT).withMaxSpeed(50.0D))
                 .addModel(NoFlyZoneRMB.create().withMinPoint(MIN_POINT).withMaxPoint(MAX_POINT).withMaxSpeed(50.0D).withForbiddenZones(forbiddenZones))
