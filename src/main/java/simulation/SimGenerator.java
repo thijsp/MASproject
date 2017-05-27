@@ -34,13 +34,13 @@ public final class SimGenerator {
     static final Point MIN_POINT = new Point(0.0D, 0.0D);
     static final Point MAX_POINT = new Point(10.0D, 10.0D);
     static final long TICK_LENGTH = 1000L;
-    static final long RANDOM_SEED = 123L;
+    static final long RANDOM_SEED = 124L;
     static final int TEST_SPEEDUP = 30;
     static final long TEST_STOP_TIME = 60000000L;
 
     static final int DEPOTS = 3;
-    static final int UAVS = 4;
-    static final int MAX_PARCELS = 100;
+    static final int UAVS = 20;
+    static final int MAX_PARCELS = 400;
 
     static final boolean TESTING = true;
 
@@ -56,7 +56,7 @@ public final class SimGenerator {
                 //.with(PlaneRoadModelRenderer.builder())
                 .with(NoFlyZoneRoadModelRenderer.builder())
                 .with(RoadUserRenderer.builder()
-                        .withImageAssociation(DistributionCenter.class, "/graphics/perspective/tall-building-64.png")
+                        .withImageAssociation(DistributionCenter.class, "/graphics/flat/factory-32.png")
                         .withToStringLabel()
                         .withColorAssociation(UAV.class, new RGB(0, 255, 0)));
                 //.with(CommRenderer.builder().withMessageCount());
