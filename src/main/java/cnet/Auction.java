@@ -47,8 +47,21 @@ public class Auction {
     }
 
     public void addBid(Bid bid) {
-        this.bids.add(bid);
-        bid.addAuction(this);
+        Optional<Bid> doubleBid = Optional.absent();
+        for (Bid alreadyBid : this.bids) {
+            if (alreadyBid.getBidder().equals(bid.getBidder())) {
+                doubleBid = Optional.of(alreadyBid);
+            }
+        }
+        if (doubleBid.isPresent()) {
+            this.bids.remove(doubleBid);
+            this.bids.add(bid);
+            bid.addAuction(this);
+
+        } else {
+            this.bids.add(bid);
+            bid.addAuction(this);
+        }
     }
 
     public Optional<Bid> getBestBid() {

@@ -68,8 +68,12 @@ public class DynContractNet extends ContractNet {
 
 
     public void refuseAuctions(List<Auction> refusedAuctions, UAV bidder) {
+        ArrayList<Auction> handledAuctions = new ArrayList<>();
         for (Auction auction : refusedAuctions) {
-            bidder.sendDirectMessage(new AcceptanceMessage(false, auction.getMyBid(bidder)), auction.getModerator() );
+            if(!handledAuctions.contains(auction)) {
+                bidder.sendDirectMessage(new AcceptanceMessage(false, auction.getMyBid(bidder)), auction.getModerator());
+                handledAuctions.add(auction);
+            }
         }
     }
 }

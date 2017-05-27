@@ -127,6 +127,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
                 else {
                     Auction auction = ((AcceptanceMessage) content).getAuction();
                     Bid refusedBid = ((AcceptanceMessage) content).getBid();
+                    System.out.println(refusedBid);
                     auction.deleteBid(refusedBid);
                 }
             }
