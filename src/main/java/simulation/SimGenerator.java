@@ -5,7 +5,6 @@ package simulation;
  */
 
 import agents.DistributionCenter;
-import agents.DroneParcel;
 import agents.UAV;
 import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
@@ -13,8 +12,7 @@ import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
 import com.github.rinde.rinsim.core.model.road.PlaneRoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.road.RoadModelBuilders;
-import com.github.rinde.rinsim.core.model.time.TickListener;
-import com.github.rinde.rinsim.core.model.time.TimeLapse;
+import com.github.rinde.rinsim.core.model.road.RoadModelBuilders.PlaneRMB;
 import com.github.rinde.rinsim.geom.Point;
 import com.github.rinde.rinsim.ui.View;
 import com.github.rinde.rinsim.ui.View.Builder;
@@ -22,7 +20,10 @@ import com.github.rinde.rinsim.ui.renderers.CommRenderer;
 import com.github.rinde.rinsim.ui.renderers.PlaneRoadModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.eclipse.swt.graphics.RGB;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 
 public final class SimGenerator {
@@ -54,8 +55,11 @@ public final class SimGenerator {
 
     public static void run(boolean testing) {
         Builder viewBuilder = View.builder().with(PlaneRoadModelRenderer.builder())
-                .with(RoadUserRenderer.builder().withImageAssociation(DistributionCenter.class, "/graphics/perspective/tall-building-64.png"))
-                .with(CommRenderer.builder().withMessageCount());
+                .with(RoadUserRenderer.builder()
+                        .withImageAssociation(DistributionCenter.class, "/graphics/perspective/tall-building-64.png")
+                        .withToStringLabel()
+                        .withColorAssociation(UAV.class, new RGB(0, 255, 0)));
+                //.with(CommRenderer.builder().withMessageCount());
         if(testing) {
             viewBuilder = viewBuilder.withSpeedUp(TEST_SPEEDUP).withAutoClose().withAutoPlay().withSimulatorEndTime(TEST_STOP_TIME);
         }
@@ -80,7 +84,7 @@ public final class SimGenerator {
 
         // create and register the UAVs
         for(int i = 0; i < UAVS; ++i) {
-            double speed = getRandomspeed(sim.getRandomGenerator(), MAX_SPEED, MIN_SPEED);
+            double speed = getRandomSpeed(sim.getRandomGenerator(), MAX_SPEED, MIN_SPEED);
             UAV uav = new UAV(sim.getRandomGenerator(), speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
@@ -95,7 +99,7 @@ public final class SimGenerator {
         sim.start();
     }
 
-    public static double getRandomspeed(RandomGenerator rnd, double minSpeed, double maxSpeed) {
+    public static double getRandomSpeed(RandomGenerator rnd, double minSpeed, double maxSpeed) {
         double random = rnd.nextDouble();
         double speed = minSpeed + (maxSpeed - minSpeed) * random;
         return speed;

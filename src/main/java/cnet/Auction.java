@@ -3,10 +3,14 @@ package cnet;
 import agents.DistributionCenter;
 import agents.DroneParcel;
 import agents.UAV;
-import javolution.testing.AssertionException;
+import com.google.common.base.Optional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Created by thijspeirelinck on 13/05/2017.
@@ -39,12 +43,7 @@ public class Auction {
     }
 
     public List<UAV> getParticipants() {
-        ArrayList<UAV> participants = new ArrayList<>();
-        for (int i = 0; i < bids.size(); i++) {
-            UAV participant = bids.get(i).getBidder();
-            participants.add(participant);
-        }
-        return participants;
+        return this.bids.stream().map(Bid::getBidder).collect(Collectors.toList());
     }
 
     public void addBid(Bid bid) {
@@ -52,14 +51,9 @@ public class Auction {
         bid.addAuction(this);
     }
 
-    public Bid getBestBid() {
-        Bid smallestBid = bids.get(0);
-        for (int i = 1; i < this.bids.size(); i++) {
-            if (this.bids.get(i).getBid() < smallestBid.getBid()) {
-                smallestBid = this.bids.get(i);
-            }
-        }
-        return smallestBid;
+    public Optional<Bid> getBestBid() {
+        java.util.Optional<Bid> bestBid = bids.stream().min(Comparator.comparingDouble(Bid::getBid));
+        return bestBid.isPresent() ? Optional.of(bestBid.get()) : Optional.absent();
     }
 
     public void close() {
@@ -68,7 +62,7 @@ public class Auction {
     }
 
     public boolean hasBids() {
-        return (!this.bids.isEmpty());
+        return !this.bids.isEmpty();
     }
 
     public Bid getMyBid(UAV bidder) {

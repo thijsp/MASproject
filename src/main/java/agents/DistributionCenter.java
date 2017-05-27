@@ -25,6 +25,7 @@ import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class DistributionCenter extends Depot implements CommUser, TickListener {
@@ -58,10 +59,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             this.lastUpdated = 0.0;
         }
         this.lastUpdated += 1;
-        System.out.println(this.availableParcels.size());
-        for (DroneParcel parcel: this.availableParcels) {
-            System.out.println(parcel.getAuction().isOpen());
-        }
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
@@ -110,13 +107,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     }
 
     private List<Auction> getUnactiveAuctions() {
-        List<Auction> unactiveauctions = new ArrayList<>();
-        for (Auction auction : this.auctions) {
-            if (auction.hasBids()) {
-                unactiveauctions.add(auction);
-            }
-        }
-        return unactiveauctions;
+        return this.auctions.stream().filter(auction -> !auction.hasBids()).collect(Collectors.toList());
     }
 
     private void checkMessages() {
@@ -165,7 +156,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         }
         return contents;
     }
-
 
     public ContractNet getCnet() {
         return this.cnet;

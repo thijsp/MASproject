@@ -6,7 +6,10 @@ package agents;
 
 import agents.accessories.Battery;
 import agents.accessories.Motor;
-import cnet.*;
+import cnet.Auction;
+import cnet.Bid;
+import cnet.ContractNet;
+import cnet.StatContractNet;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
@@ -24,7 +27,7 @@ import javax.measure.quantity.Length;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 public class UAV extends Vehicle implements CommUser {
     private static final double RANGE = 20.0D;
@@ -90,26 +93,26 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     private void doNextMove(TimeLapse time) {
-        if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in UAV"); }
+        if (!this.commDevice.isPresent())
+            throw new IllegalStateException("No commdevice in UAV");
 
-        else if(this.state.equals(DroneState.DELIVERING)) {
+        switch (this.state) {
+        case DELIVERING:
             this.deliverParcel(time);
-        }
-        else if (this.state.equals(DroneState.PICKING)) {
+            break;
+        case PICKING:
             this.pickupParcel(time);
-        }
-        else if (this.state.equals(DroneState.IN_AUCTION)) {
+            break;
+        case IN_AUCTION:
+        case IDLE:
             this.dealWithAuctions();
-        }
-        else if (this.state.equals(DroneState.NO_SERVICE)) {
+            break;
+        case NO_SERVICE:
             this.goCharge(time);
-        }
-        else if (this.state.equals(DroneState.CHARGING)) {
+            break;
+        case CHARGING:
             this.charge();
-        }
-        else if (this.state.equals(DroneState.IDLE)) {
-            this.dealWithAuctions();
-            this.goCharge(time);
+            break;
         }
     }
 
@@ -211,7 +214,7 @@ public class UAV extends Vehicle implements CommUser {
 
     private void charge() {
         Battery battery = this.getMotor().getPowerSource();
-        if (battery.getChargeRate() < 1.0) {
+        if (battery.getChargePercentage() < 1.0) {
             battery.charge();
         }
         else {
@@ -237,26 +240,24 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     public List<Auction> getAvailableAuctions(List<TypedMessage> messages) {
-        List<Auction> availablaAuctions = new ArrayList<>();
+        List<Auction> availableAuctions = new ArrayList<>();
         for (TypedMessage content : messages) {
             if (content.getType().equals(MessageType.NEW_PARCEL)) {
                 Auction auction = ((AuctionMessage) content).getAuction();
+                availableAuctions.add(auction);
                 if (!this.auctions.contains(auction)) {
                     availablaAuctions.add(auction);
                 }
             }
         }
-        return availablaAuctions;
+        return availableAuctions;
     }
 
     public List<AuctionResultMessage> getAuctionResults(List<TypedMessage> messages) {
-        List<AuctionResultMessage> auctionResultMessages = new ArrayList<>();
-        for (TypedMessage content : messages) {
-            if (content.getType().equals(MessageType.AUCTION_RESULT)) {
-                auctionResultMessages.add((AuctionResultMessage) content);
-            }
-        }
-        return auctionResultMessages;
+        return messages.stream()
+                .filter(msg -> msg.getType() == MessageType.AUCTION_RESULT)
+                .map(msg -> (AuctionResultMessage) msg)
+                .collect(Collectors.toList());
     }
 
     public List<TypedMessage> readMessageContents() {

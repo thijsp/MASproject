@@ -5,7 +5,7 @@ import agents.UAV;
 /**
  * Created by thijspeirelinck on 14/05/2017.
  */
-public class Accessory {
+public abstract class Accessory {
 
     private UAV drone;
 
