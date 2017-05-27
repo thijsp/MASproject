@@ -20,15 +20,21 @@ import com.github.rinde.rinsim.geom.PathNotFoundException;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.collect.ImmutableList;
 import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import communication.*;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import javax.measure.Measure;
 import javax.measure.quantity.Length;
 import javax.measure.unit.SI;
-import java.time.temporal.IsoFields;
+
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static com.google.common.collect.Iterators.*;
 
 public class UAV extends Vehicle implements CommUser {
     private static final double RANGE = 20.0D;
@@ -37,15 +43,15 @@ public class UAV extends Vehicle implements CommUser {
     private final double maxSpeed;
 
     private Optional<DroneParcel> parcel;
-    private Optional<CommDevice> commDevice;
+    private Optional<CommDevice> commDevice = Optional.absent();
     private DroneState state = DroneState.IDLE;
     private ContractNet cnet;
     private Motor motor;
     private LinkedList<Point> path = new LinkedList<>();
+    private Optional<Point> closestDepot = Optional.absent();
 
     public UAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).startPosition(startPos).build());
-        this.commDevice = Optional.absent();
         this.cnet = new StatContractNet();
         this.maxSpeed = maxSpeed;
         this.motor = new Motor(this, new Battery(batteryCapacity), motorPower);
@@ -148,27 +154,17 @@ public class UAV extends Vehicle implements CommUser {
 
     private void fly(Point destLoc, TimeLapse time) {
         RoadModel rm = this.getRoadModel();
-        final Point srcLoc = rm.getPosition(this);
 
         // Update the cached path if necessary
-        if (path.isEmpty() /* || !path.peekFirst().equals(srcLoc) */ || !path.peekLast().equals(destLoc)) {
-//            System.out.println(String.format("Path out of date - rebuilding (empty: %s, src: %s vs %s, dest: %s vs %s)\nPath was: %s",
-//                path.isEmpty(), path.peekFirst(), srcLoc, path.peekLast(), destLoc, path));
+        if (path.isEmpty() || !path.peekLast().equals(destLoc)) {
             Optional<LinkedList<Point>> maybePath = this.computeShortestPath(destLoc);
             if (!maybePath.isPresent())
                 return;
             this.path = maybePath.get();
         }
 
+        // followPath also updates this.path
         MoveProgress progress = rm.followPath(this, this.path, time);
-//        System.out.println("Move progress: " + progress);
-//        for (Point travelledNode : progress.travelledNodes()) {
-//            Point pathNode = path.pollFirst();
-//            assert pathNode.equals(travelledNode);
-//        }
-//        assert !rm.getPosition(this).equals(srcLoc);
-
-//        path.addFirst(rm.getPosition(this));
         this.getMotor().fly(progress.time().doubleValue(SI.SECOND), this.getSpeed());
     }
 
@@ -193,42 +189,35 @@ public class UAV extends Vehicle implements CommUser {
 
     private Optional<LinkedList<Point>> computeShortestPath(Point dest) {
         final RoadModel rm = this.getRoadModel();
+        final Point pos = rm.getPosition(this);
         try {
-            return Optional.of(new LinkedList<>(rm.getShortestPathTo(rm.getPosition(this), dest)));
+            return Optional.of(new LinkedList<>(rm.getShortestPathTo(pos, dest)));
         } catch (PathNotFoundException exc) {
-            System.err.println(String.format("No path to point %s found", dest));
+            System.err.println(String.format("No path found between %s and %s", pos, dest));
             return Optional.absent();
         }
     }
 
     private void goCharge(TimeLapse time) {
         RoadModel rm = this.getRoadModel();
-        Iterator<DistributionCenter> it = rm.getObjectsOfType(DistributionCenter.class).iterator();
-        boolean atChargingStation = false;
-        while (it.hasNext() & !atChargingStation) {
-            DistributionCenter chargingStation = it.next();
-            if (chargingStation.getPosition().get().equals(this.getPosition().get())) {
-                atChargingStation = true;
-            }
-        }
-        if (atChargingStation) {
+        boolean atDepot = rm.getObjectsOfType(DistributionCenter.class).stream()
+                .anyMatch(depot -> rm.equalPosition(depot, this));
+
+        if (atDepot) {
             this.setState(DroneState.CHARGING);
-        }
-        else {
-            List<Point> chargePath = this.getPathToNearestChargeStation(this.getPosition().get());
-            Point chargeLoc = chargePath.get(chargePath.size() - 1);
-            this.fly(chargeLoc, time);
+            this.closestDepot = Optional.absent();
+        } else {
+            if (!this.closestDepot.isPresent())
+                this.closestDepot = Optional.of(this.getNearestChargeStation());
+            this.fly(this.closestDepot.get(), time);
         }
     }
 
     private void charge() {
         Battery battery = this.getMotor().getPowerSource();
-        if (battery.getChargePercentage() < 1.0) {
-            battery.charge();
-        }
-        else {
+        battery.charge();
+        if (battery.isFull())
             this.setState(DroneState.IDLE);
-        }
     }
 
     public double calculateDeliveryTime(Point loc) {
@@ -241,14 +230,10 @@ public class UAV extends Vehicle implements CommUser {
     }
 
     public List<Auction> getAvailableAuctions(List<TypedMessage> messages) {
-        List<Auction> availableAuctions = new ArrayList<>();
-        for (TypedMessage content : messages) {
-            if (content.getType().equals(MessageType.NEW_PARCEL)) {
-                Auction auction = ((AuctionMessage) content).getAuction();
-                availableAuctions.add(auction);
-            }
-        }
-        return availableAuctions;
+        return messages.stream()
+                .filter(msg -> msg.getType() == MessageType.NEW_PARCEL)
+                .map(msg -> ((AuctionMessage) msg).getAuction())
+                .collect(Collectors.toList());
     }
 
     public List<AuctionResultMessage> getAuctionResults(List<TypedMessage> messages) {
@@ -269,9 +254,9 @@ public class UAV extends Vehicle implements CommUser {
     }
 
 
-    public void sendDirectMessage(TypedMessage content, CommUser recipiant) {
+    public void sendDirectMessage(TypedMessage content, CommUser recipient) {
         CommDevice device = this.commDevice.get();
-        device.send(content, recipiant);
+        device.send(content, recipient);
     }
 
     @Override
@@ -292,38 +277,26 @@ public class UAV extends Vehicle implements CommUser {
     public Motor getMotor() { return this.motor; }
 
     public boolean wantsToBid(DroneParcel parcel) {
-        Point delLoc = parcel.getDeliveryLocation();
-        Point pickupLoc = parcel.getPickupLocation();
         RoadModel rm = this.getRoadModel();
-        List<Point> pathToPickup = rm.getShortestPathTo(this, pickupLoc);
-        List<Point> pathToDelivery = rm.getShortestPathTo(pickupLoc, delLoc);
-        List<Point> pathToDepot = this.getPathToNearestChargeStation(delLoc);
-        List<Point> fullPath = new ArrayList<>();
-        fullPath.addAll(pathToPickup);
-        fullPath.addAll(pathToDelivery);
-        fullPath.addAll(pathToDepot);
+        Point destLoc = parcel.getDeliveryLocation();
+        Point pickupLoc = parcel.getPickupLocation();
+        Optional<LinkedList<Point>> pathToPickup = this.computeShortestPath(pickupLoc);
+        if (!pathToPickup.isPresent())
+            return false;
+        List<Point> fullPath = Lists.newArrayList(Iterables.concat(pathToPickup.get(), parcel.getShortestPath(), parcel.getShortestEscape()));
         double distance = rm.getDistanceOfPath(fullPath).getValue();
         return this.getMotor().possibleJourney(distance, this.getSpeed());
     }
 
-    public List<Point> getPathToNearestChargeStation(Point loc) {
-        RoadModel rm = this.getRoadModel();
-        Iterator<DistributionCenter> it = rm.getObjectsOfType(DistributionCenter.class).iterator();
-        DistributionCenter depot = it.next();
-        Point depotPos = depot.getPosition().get();
-        List<Point> shortestPath = rm.getShortestPathTo(loc, depotPos);
-        double distance = rm.getDistanceOfPath(shortestPath).getValue();
-        while (it.hasNext()) {
-            DistributionCenter nextDepot = it.next();
-            Point nextDepotPos = nextDepot.getPosition().get();
-            List<Point> nextShortestPath = rm.getShortestPathTo(loc, nextDepotPos);
-            double nextDistance = rm.getDistanceOfPath(nextShortestPath).getValue();
-            if (nextDistance < distance) {
-                distance = nextDistance;
-                shortestPath = nextShortestPath;
-            }
-        }
-        return shortestPath;
+    public Point getNearestChargeStation() {
+        List<Point> shortestPath = DistributionCenter.getPathToClosest(this.getRoadModel(), this.getPosition().get());
+        return shortestPath.get(shortestPath.size() - 1);
+    }
+
+    @Override
+    public String toString() {
+        Point pos = this.getPosition().get();
+        return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getChargePercentage());
     }
 }
 
