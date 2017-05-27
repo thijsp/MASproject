@@ -5,6 +5,7 @@ package agents;
  */
 
 import cnet.Auction;
+import cnet.Bid;
 import cnet.ContractNet;
 import cnet.StatContractNet;
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
@@ -13,6 +14,7 @@ import com.github.rinde.rinsim.core.model.comm.CommUser;
 import com.github.rinde.rinsim.core.model.comm.Message;
 import com.github.rinde.rinsim.core.model.pdp.Depot;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
+import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.time.TickListener;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
@@ -56,6 +58,10 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             this.lastUpdated = 0.0;
         }
         this.lastUpdated += 1;
+        System.out.println(this.availableParcels.size());
+        for (DroneParcel parcel: this.availableParcels) {
+            System.out.println(parcel.getAuction().isOpen());
+        }
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) {
@@ -106,7 +112,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     private List<Auction> getUnactiveAuctions() {
         List<Auction> unactiveauctions = new ArrayList<>();
         for (Auction auction : this.auctions) {
-            if (!auction.hasBids()) {
+            if (auction.hasBids()) {
                 unactiveauctions.add(auction);
             }
         }
@@ -123,8 +129,15 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
                 auctions.add(message.getAuction());
             }
             if (content.getType().equals(MessageType.PARCEL_ACCEPTANCE)) {
-                Auction auction = ((AcceptanceMessage) content).getAuction();
-                auction.close();
+                if (((AcceptanceMessage) content).isAccepted()) {
+                    Auction auction = ((AcceptanceMessage) content).getAuction();
+                    auction.close();
+                }
+                else {
+                    Auction auction = ((AcceptanceMessage) content).getAuction();
+                    Bid refusedBid = ((AcceptanceMessage) content).getBid();
+                    auction.deleteBid(refusedBid);
+                }
             }
         }
         this.moderateAuction(auctions);
@@ -152,6 +165,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         }
         return contents;
     }
+
 
     public ContractNet getCnet() {
         return this.cnet;

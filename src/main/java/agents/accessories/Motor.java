@@ -13,7 +13,7 @@ public class Motor extends Accessory {
     private UAV drone;
 
     public Motor(UAV uav, Battery battery, Double power) {
-        super();
+        super(uav);
         this.powerSource = battery;
         this.power = power;
         this.drone = uav;

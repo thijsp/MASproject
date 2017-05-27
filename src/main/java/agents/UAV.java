@@ -6,9 +6,7 @@ package agents;
 
 import agents.accessories.Battery;
 import agents.accessories.Motor;
-import cnet.Auction;
-import cnet.ContractNet;
-import cnet.StatContractNet;
+import cnet.*;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
@@ -38,16 +36,18 @@ public class UAV extends Vehicle implements CommUser {
     private Optional<DroneParcel> parcel;
     private Optional<CommDevice> commDevice;
     private DroneState state = DroneState.IDLE;
-    private ContractNet cnet;
+    private DynContractNet cnet;
     private Motor motor;
+    private List<Auction> auctions;
 
     public UAV(RandomGenerator rnd, Double speed, Double batteryCapacity, Double motorPower, Double maxSpeed) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).build());
         this.rnd = rnd;
         this.commDevice = Optional.absent();
-        this.cnet = new StatContractNet();
+        this.cnet = new DynContractNet();
         this.maxSpeed = maxSpeed;
-        this.motor = new Motor(this, new Battery(batteryCapacity), motorPower);
+        this.motor = new Motor(this, new Battery(batteryCapacity, this), motorPower);
+        this.auctions = new ArrayList<>();
 
     }
 
@@ -109,6 +109,7 @@ public class UAV extends Vehicle implements CommUser {
         }
         else if (this.state.equals(DroneState.IDLE)) {
             this.dealWithAuctions();
+            this.goCharge(time);
         }
     }
 
@@ -147,28 +148,46 @@ public class UAV extends Vehicle implements CommUser {
     private void fly(Point destLoc, TimeLapse time) {
         RoadModel rm = this.getRoadModel();
         double flyTime = time.getTickLength()/ (1000); // in sec
-        this.getMotor().fly(flyTime, this.getSpeed());
-        rm.moveTo(this, destLoc, time);
+        if (this.motor.canFly(flyTime, this.getSpeed())) {
+            this.getMotor().fly(flyTime, this.getSpeed());
+            rm.moveTo(this, destLoc, time);
+        }
+        else {
+            this.setState(DroneState.NO_SERVICE);
+        }
     }
 
     private void dealWithAuctions() {
         List<TypedMessage> messages = this.readMessageContents();
         List<Auction> availableAuctions = this.getAvailableAuctions(messages);
-        DroneState newState = this.getCnet().bidOnAvailableAuction(this.state, availableAuctions, this);
+        List<Auction> biddedAuctions = this.getCnet().bidOnAvailableAuction(availableAuctions, this);
+        this.addAuctions(biddedAuctions);
         List<AuctionResultMessage> resultMessages = this.getAuctionResults(messages);
-        if (this.state.equals(DroneState.IN_AUCTION) & (!resultMessages.isEmpty()) ) {
-            Optional<DroneParcel> newParcel = this.getCnet().defineAuctionResult(this.state, resultMessages, this);
-            if (newParcel.isPresent()) {
-                this.parcel = newParcel;
-                this.setState(DroneState.PICKING);
-            } else {
-                this.setState(DroneState.IDLE);
+        if (!resultMessages.isEmpty() ) {
+            AuctionResult allAuctions = this.getCnet().defineAuctionResult(resultMessages);
+            List<Auction> lostAuctions = allAuctions.getLostAuctions();
+            List<Auction> wonAuctions = allAuctions.getWonAuctions();
+            this.deleteAuctions(lostAuctions);
+            this.deleteAuctions(wonAuctions);
+            if (!wonAuctions.isEmpty()) {
+                Optional<Auction> auction = this.getBestAuction(wonAuctions);
+                if (auction.isPresent()) {
+                    wonAuctions.remove(auction.get());
+                    this.getCnet().refuseAuctions(wonAuctions, this);
+                    this.getCnet().acceptAuction(auction.get(), this);
+                    this.parcel = Optional.of(auction.get().getParcel());
+                    this.setState(DroneState.PICKING);
+                } else {
+                    this.getCnet().refuseAuctions(wonAuctions, this);
+                    this.setState(DroneState.NO_SERVICE);
+                }
             }
         }
-        else {
-            this.setState(newState);
+        if (this.state.equals(DroneState.IN_AUCTION) & this.auctions.isEmpty() ) {
+            this.setState(DroneState.IDLE);
         }
     }
+
 
     private void goCharge(TimeLapse time) {
         RoadModel rm = this.getRoadModel();
@@ -196,7 +215,15 @@ public class UAV extends Vehicle implements CommUser {
             battery.charge();
         }
         else {
-            this.setState(DroneState.IDLE);
+            if (this.parcel.isPresent()) {
+                this.setState(DroneState.PICKING);
+            }
+            else if (!this.auctions.isEmpty()) {
+                this.setState(DroneState.IN_AUCTION);
+            }
+            else {
+                this.setState(DroneState.IDLE);
+            }
         }
     }
 
@@ -214,7 +241,9 @@ public class UAV extends Vehicle implements CommUser {
         for (TypedMessage content : messages) {
             if (content.getType().equals(MessageType.NEW_PARCEL)) {
                 Auction auction = ((AuctionMessage) content).getAuction();
-                availablaAuctions.add(auction);
+                if (!this.auctions.contains(auction)) {
+                    availablaAuctions.add(auction);
+                }
             }
         }
         return availablaAuctions;
@@ -257,7 +286,7 @@ public class UAV extends Vehicle implements CommUser {
         this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
     }
 
-    public ContractNet getCnet() {
+    public DynContractNet getCnet() {
         return this.cnet;
     }
 
@@ -296,6 +325,43 @@ public class UAV extends Vehicle implements CommUser {
             }
         }
         return shortestPath;
+    }
+
+    private void addAuctions(List<Auction> auctions) {
+        this.auctions.addAll(auctions);
+    }
+
+    private void deleteAuctions(List<Auction> auctions) {
+        this.auctions.removeAll(auctions);
+    }
+
+    /**
+     * @pre wonAuctions is not empty
+     * @param wonAuctions
+     * @return
+     */
+    private Optional<Auction> getBestAuction(List<Auction> wonAuctions) {
+        Auction bestAuction = wonAuctions.get(0);
+        Bid myBestBid = bestAuction.getMyBid(this);
+        int i = 1;
+        while (i < wonAuctions.size()) {
+            Auction auction = wonAuctions.get(i);
+            Bid bid = auction.getMyBid(this);
+            if (bid.getBid() < myBestBid.getBid()) {
+                myBestBid = bid;
+                bestAuction = auction;
+            }
+            i++;
+        }
+        if (this.wantsToBid(bestAuction.getParcel())) {
+            return Optional.of(bestAuction);
+        } else {
+            return Optional.absent();
+        }
+    }
+
+    public DroneState getState() {
+        return state;
     }
 }
 

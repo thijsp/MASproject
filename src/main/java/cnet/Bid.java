@@ -33,4 +33,5 @@ public class Bid {
     public void addAuction(Auction auction) {
         this.auction = auction;
     }
+
 }

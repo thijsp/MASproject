@@ -19,4 +19,8 @@ public class BidMessage extends AuctionMessage {
     public Double getDeliveryTime() {
         return this.bid.getBid();
     }
+
+    public Bid getBid() {
+        return this.bid;
+    }
 }

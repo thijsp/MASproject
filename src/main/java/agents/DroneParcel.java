@@ -12,10 +12,19 @@ import com.github.rinde.rinsim.geom.Point;
 public class DroneParcel extends Parcel {
 
     private DistributionCenter depot;
+    private Auction auction;
 
     public DroneParcel(Point destination, DistributionCenter depot) {
         super(Parcel.builder(depot.getPosition().get(), destination).buildDTO());
         this.depot = depot;
+    }
+
+    public void setAuction(Auction auction) {
+        this.auction = auction;
+    }
+
+    public Auction getAuction() {
+        return this.auction;
     }
 
     @Override

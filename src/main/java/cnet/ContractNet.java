@@ -59,7 +59,7 @@ public class ContractNet {
         moderator.sendBroadcastMessage(content);
     }
 
-    public DroneState bidOnAvailableAuction(DroneState state, List<Auction> auctions, UAV bidder) {return state;}
+    public List<Auction> bidOnAvailableAuction(List<Auction> auctions, UAV bidder) {return new ArrayList<>();}
 
 
     public List<DistributionCenter> getDepots() {
@@ -76,7 +76,7 @@ public class ContractNet {
 
     public void moderateAuction(Auction auction, DistributionCenter moderator) {}
 
-    public boolean placeBid(AuctionMessage content, UAV bidder) {
+    public boolean placeBid(Auction auction, UAV bidder) {
         return false;
     }
 

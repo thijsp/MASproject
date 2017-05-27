@@ -1,5 +1,6 @@
 package agents.accessories;
 
+import agents.UAV;
 import agents.constraints.BatteryConstraint;
 
 /**
@@ -12,8 +13,8 @@ public class Battery extends Accessory {
     private BatteryConstraint constraint;
     private final double chargingPower; // in Ws
 
-    public Battery(Double capacity) {
-        super();
+    public Battery(Double capacity, UAV user) {
+        super(user);
         this.capacity = capacity;
         this.charge = capacity;
         this.constraint = new BatteryConstraint(this);
@@ -41,7 +42,9 @@ public class Battery extends Accessory {
     }
 
     public void discharge(double consumedEnergy) {
-        if (!this.enoughChargeFor(consumedEnergy)) throw new IllegalStateException("Battery is used up until negative charge");
+        if (!this.enoughChargeFor(consumedEnergy)) {
+            throw new IllegalStateException("Battery is used up until negative charge");
+        }
         double newCharge = this.charge - consumedEnergy;
         this.charge = newCharge;
     }

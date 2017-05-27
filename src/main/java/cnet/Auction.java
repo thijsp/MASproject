@@ -3,6 +3,7 @@ package cnet;
 import agents.DistributionCenter;
 import agents.DroneParcel;
 import agents.UAV;
+import javolution.testing.AssertionException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,7 @@ public class Auction {
         this.moderator = moderator;
         this.bids = new ArrayList<>();
         this.open = true;
+        parcel.setAuction(this);
     }
 
     public DroneParcel getParcel() {
@@ -69,5 +71,19 @@ public class Auction {
         return (!this.bids.isEmpty());
     }
 
+    public Bid getMyBid(UAV bidder) {
+        if (!this.hasBids()) {throw new IllegalArgumentException("no bidder like this");}
+        for (Bid bid : this.bids) {
+            if (bid.getBidder().equals(bidder)) {
+                return bid;
+            }
+        }
+        return null;
+    }
 
+
+    public void deleteBid(Bid refusedBid) {
+        if (!this.bids.contains(refusedBid)) {throw new IllegalArgumentException("no bid like this");}
+        this.bids.remove(refusedBid);
+    }
 }

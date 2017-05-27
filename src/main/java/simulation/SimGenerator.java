@@ -37,7 +37,7 @@ public final class SimGenerator {
     static final long RANDOM_SEED = 123L;
     static final int NUM_VEHICLES = 200;
     static final int TEST_SPEEDUP = 30;
-    static final long TEST_STOP_TIME = 60000000L;
+    static final long TEST_STOP_TIME = 6000000000L;
 
     static final int DEPOTS = 4;
     static final int UAVS = 4;

@@ -64,7 +64,7 @@ public class StatContractNet extends ContractNet {
         assert (auctions.size() == 1); // static contract net, UAV can only be involved in one auction
         for (Auction auction : auctions) {
             assert (auction.isOpen()); // in the case of static contract net, this should always be true
-            bidder.sendDirectMessage(new AcceptanceMessage(auction, true),auction.getModerator());
+            bidder.sendDirectMessage(new AcceptanceMessage(true, auction.getMyBid(bidder)),auction.getModerator());
             return Optional.of(auction.getParcel());
         }
         return Optional.absent();
