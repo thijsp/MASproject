@@ -17,7 +17,7 @@ public class Battery extends Accessory {
         this.capacity = capacity;
         this.charge = capacity;
         this.constraint = new BatteryConstraint(this);
-        this.chargingPower = capacity/500;
+        this.chargingPower = capacity/5000;
     }
 
     public double getCapacity() {
@@ -42,8 +42,7 @@ public class Battery extends Accessory {
 
     public void discharge(double consumedEnergy) {
         if (!this.enoughChargeFor(consumedEnergy)) throw new IllegalStateException("Battery is used up until negative charge");
-        double newCharge = this.charge - consumedEnergy;
-        this.charge = newCharge;
+        this.charge -= consumedEnergy;
     }
 
     public boolean enoughChargeFor(double plannedConsumption) {
@@ -53,5 +52,9 @@ public class Battery extends Accessory {
 
     public void charge() {
         this.charge = Math.min(this.capacity, this.charge + this.chargingPower);
+    }
+
+    public boolean isFull() {
+        return this.charge == this.capacity;
     }
 }
