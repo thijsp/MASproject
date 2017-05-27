@@ -6,10 +6,7 @@ package agents;
 
 import agents.accessories.Battery;
 import agents.accessories.Motor;
-import cnet.Auction;
-import cnet.Bid;
-import cnet.ContractNet;
-import cnet.StatContractNet;
+import cnet.*;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
@@ -246,7 +243,7 @@ public class UAV extends Vehicle implements CommUser {
                 Auction auction = ((AuctionMessage) content).getAuction();
                 availableAuctions.add(auction);
                 if (!this.auctions.contains(auction)) {
-                    availablaAuctions.add(auction);
+                    availableAuctions.add(auction);
                 }
             }
         }
