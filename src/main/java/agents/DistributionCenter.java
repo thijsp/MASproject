@@ -18,6 +18,7 @@ import com.github.rinde.rinsim.core.model.pdp.Parcel;
 import com.github.rinde.rinsim.core.model.road.RoadModel;
 import com.github.rinde.rinsim.core.model.time.TickListener;
 import com.github.rinde.rinsim.core.model.time.TimeLapse;
+import com.github.rinde.rinsim.geom.PathNotFoundException;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -26,6 +27,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 public class DistributionCenter extends Depot implements CommUser, TickListener {
@@ -160,6 +162,24 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
 
     public ContractNet getCnet() {
         return this.cnet;
+    }
+
+    public static List<Point> getPathToClosest(RoadModel rm, Point from) {
+        return rm.getObjectsOfType(DistributionCenter.class).stream()
+                .flatMap(depot -> {
+                    try {
+                        return Stream.of(rm.getShortestPathTo(from, depot.getPosition().get()));
+                    } catch (PathNotFoundException exc) {
+                        return Stream.<List<Point>>empty();
+                    }
+                })
+                .min(Comparator.comparingDouble(path -> rm.getDistanceOfPath(path).getValue()))
+                .get();
+    }
+
+    @Override
+    public String toString() {
+        return ""; // FIXME overlapping RoadUser tags
     }
 
 }

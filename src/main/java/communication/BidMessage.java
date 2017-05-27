@@ -16,7 +16,7 @@ public class BidMessage extends AuctionMessage {
         this.bid = bid;
     }
 
-    public Double getDeliveryTime() {
+    public double getDeliveryTime() {
         return this.bid.getBid();
     }
 
