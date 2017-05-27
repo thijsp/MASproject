@@ -103,6 +103,7 @@ public class UAV extends Vehicle implements CommUser {
         case IN_AUCTION:
         case IDLE:
             this.dealWithAuctions();
+            this.goCharge(time);
             break;
         case NO_SERVICE:
             this.goCharge(time);
