@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -64,8 +65,16 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
         super.addObjectAt(obj, pos);
     }
 
+
     @Override
+    @SuppressWarnings("unchecked")
     public List<Point> getShortestPathTo(Point from, Point to) {
+        Pair conn = new Pair<>(from, to);
+        return memo.computeIfAbsent(conn, this::getShortestPathToImpl);
+    }
+
+    private List<Point> getShortestPathToImpl(Pair<Point, Point> conn) {
+        Point from = conn.getFirst(), to = conn.getSecond();
         checkArgument(
                 !isPointForbidden(from),
                 "from may not be in a forbidden zone (%s is in a zone)", from);
@@ -73,7 +82,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
                 !isPointForbidden(to),
                 "to may not be in a forbidden zone (%s is in a zone)", to);
 
-        Pair conn = new Pair<Point, Point>(from, to);
+
         if (memo.containsKey(conn))
             return memo.get(conn);
 
@@ -98,6 +107,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
         List<Point> result = Graphs.shortestPathEuclideanDistance(g, from, to);
         memo.put(conn, result);
+        System.out.println("Memo size: " + memo.size());
         return result;
     }
 
@@ -128,7 +138,6 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
                 .filter(side -> !intersectsAny(zones, side))
                 .filter(side -> !graph.hasConnection(side.start, side.end))
                 .forEach(side -> {
-                    System.out.println("Adding side " + side);
                     LengthData dist = LengthData.create(side.distance());
                     graph.addConnection(side.start, side.end,   dist);
                     graph.addConnection(side.end,   side.start, dist);
@@ -136,7 +145,6 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
         // Add connections between endpoints of no-fly zones
         List<List<Point>> pts = zones.stream().map(zone -> unobstructedEndpoints(zone, zones)).collect(Collectors.toList());
-        System.out.println(pts);
 
         for (int i = 1; i < pts.size(); ++i) {
             List<Point> ptsA = pts.get(i);
