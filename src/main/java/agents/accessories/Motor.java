@@ -29,6 +29,7 @@ public class Motor extends Accessory {
     }
 
     public double getPowerUsed(double speed) {
+        // TODO don't use linear relation here
         double modulation = speed/this.maxSpeed;
         return modulation * this.power;
     }
@@ -38,18 +39,18 @@ public class Motor extends Accessory {
         return time * consumedPower;
     }
 
-    public void fly(double travelTime, double speed) {
+    public void drainPower(double travelTime, double speed) {
          double consumedEnergy = this.getConsumedEnergy(travelTime, speed);
          this.getPowerSource().discharge(consumedEnergy);
     }
 
-    public boolean canFly(double travelTime, double speed) {
+    public boolean canFlyTime(double travelTime, double speed) {
         double consumptionPlanned = this.getConsumedEnergy(travelTime, speed);
         return this.getPowerSource().enoughChargeFor(consumptionPlanned);
     }
 
-    public boolean possibleJourney(double distance, double speed) {
+    public boolean canFlyDistance(double distance, double speed) {
         double travelTime = distance/speed * 3600; // in sec;
-        return this.canFly(travelTime, speed);
+        return this.canFlyTime(travelTime, speed);
     }
 }

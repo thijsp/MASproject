@@ -3,19 +3,21 @@ package communication;
 import com.github.rinde.rinsim.core.model.comm.MessageContents;
 
 /**
- * Created by thijspeirelinck on 13/05/2017.
+ * Tagged union for the different types of message that can be sent.
  */
-public class TypedMessage implements MessageContents {
+public abstract class TypedMessage implements MessageContents {
 
-    private MessageType type;
+    public final MessageType type;
 
-    public TypedMessage() {}
-
-    public MessageType getType() {
-        return this.type;
-    }
-
-    public void setType(MessageType type) {
+    TypedMessage(MessageType type) {
         this.type = type;
     }
+
+//    public MessageType getType() {
+//        return this.type;
+//    }
+
+//    public void setType(MessageType type) {
+//        this.type = type;
+//    }
 }

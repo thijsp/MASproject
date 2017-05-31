@@ -5,10 +5,7 @@ import agents.DroneParcel;
 import agents.DroneState;
 import agents.UAV;
 import com.github.rinde.rinsim.core.model.comm.Message;
-import communication.AuctionMessage;
-import communication.AuctionResultMessage;
 import communication.TypedMessage;
-import communication.NewParcelMessage;
 import com.google.common.base.Optional;
 
 import java.util.ArrayList;
@@ -55,8 +52,8 @@ public class ContractNet {
     }
 
     public void sendAuctionMessage(DistributionCenter moderator, Auction auction) {
-        TypedMessage content = new NewParcelMessage(auction);
-        moderator.sendBroadcastMessage(content);
+        TypedMessage content = new NewAuctionMessage(auction);
+        moderator.broadcast(content);
     }
 
     public List<Auction> bidOnAvailableAuction(List<Auction> auctions, UAV bidder) {return new ArrayList<>();}

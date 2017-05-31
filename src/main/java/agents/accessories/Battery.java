@@ -37,7 +37,7 @@ public class Battery extends Accessory {
         return this.constraint;
     }
 
-    public double getChargePercentage() {
+    public double getBatteryLevel() {
         return this.getCharge()/this.getCapacity();
     }
 

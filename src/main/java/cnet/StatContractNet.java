@@ -29,7 +29,7 @@ public class StatContractNet extends ContractNet {
         DroneParcel parcel = auction.getParcel();
         double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
         Bid bid = new Bid(bidder, delTime, auction);
-        bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
+        bidder.sendDirect(new BidMessage(bid), auction.getModerator());
         return true;
     }
 
@@ -41,7 +41,7 @@ public class StatContractNet extends ContractNet {
         List<UAV> participants = auction.getParticipants();
         for (UAV participant : participants) {
             AuctionResultMessage message = new AuctionResultMessage(auction, participant.equals(winner) );
-            moderator.sendDirectMessage(message, participant);
+            moderator.sendDirect(message, participant);
         }
     }
 
@@ -55,7 +55,7 @@ public class StatContractNet extends ContractNet {
         assert (auctions.size() == 1); // static contract net, UAV can only be involved in one auction
         for (Auction auction : auctions) {
             assert (auction.isOpen()); // in the case of static contract net, this should always be true
-            bidder.sendDirectMessage(new AcceptanceMessage(true, auction.getMyBid(bidder)),auction.getModerator());
+            bidder.sendDirect(new AcceptanceMessage(true, auction.getMyBid(bidder)),auction.getModerator());
             return Optional.of(auction.getParcel());
         }
         return Optional.absent();
@@ -64,7 +64,7 @@ public class StatContractNet extends ContractNet {
     public void handleUnactiveAuctions(List<Auction> unactiveAuctions) {
         for (Auction auction : unactiveAuctions) {
             DistributionCenter moderator = auction.getModerator();
-            moderator.sendBroadcastMessage(new NewParcelMessage(auction));
+            moderator.broadcast(new NewAuctionMessage(auction));
         }
     }
 

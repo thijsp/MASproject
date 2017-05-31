@@ -132,7 +132,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
     private static Graph<LengthData> computeGraph(List<Rectangle> zones) {
         Graph<LengthData> graph = new TableGraph<>();
 
-        // Add connections alongside the borders of no-fly zones
+        // Add connections alongside the borders of no-drainPower zones
         zones.stream()
                 .flatMap(zone -> Arrays.stream(zone.getSides()))
                 .filter(side -> !intersectsAny(zones, side))
@@ -143,7 +143,7 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
                     graph.addConnection(side.end,   side.start, dist);
                 });
 
-        // Add connections between endpoints of no-fly zones
+        // Add connections between endpoints of no-drainPower zones
         List<List<Point>> pts = zones.stream().map(zone -> unobstructedEndpoints(zone, zones)).collect(Collectors.toList());
 
         for (int i = 1; i < pts.size(); ++i) {

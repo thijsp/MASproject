@@ -1,23 +1,38 @@
 package communication;
 
 import cnet.Auction;
+import cnet.Bid;
+import com.github.rinde.rinsim.core.model.comm.Message;
 
 /**
- * Created by thijspeirelinck on 13/05/2017.
+ * Common superclass for messages that are related to an auction.
  */
-public class AuctionMessage extends TypedMessage {
+public final class AuctionMessage extends TypedMessage {
 
-    private Auction auction;
+    private final Auction auction;
 
-    AuctionMessage(Auction auction) {
+    private AuctionMessage(MessageType type, Auction auction) {
+        super(type);
         this.auction = auction;
     }
 
-    public Auction getAuction() {
-        return this.auction;
+    public static AuctionMessage createNewAuction(Auction auction) {
+        return new AuctionMessage(MessageType.NEW_AUCTION, auction);
     }
 
-    public boolean AuctionStillActive() {
-        return this.getAuction().isOpen();
+    public static AuctionMessage createAuctionLost(Auction auction) {
+        return new AuctionMessage(MessageType.AUCTION_LOST, auction);
+    }
+
+    public static AuctionMessage createAcceptance(Auction auction) {
+        return new AuctionMessage(MessageType.PARCEL_ACCEPTED, auction);
+    }
+
+    public static AuctionMessage createAuctionDone(Auction auction) {
+        return new AuctionMessage(MessageType.AUCTION_DONE, auction);
+    }
+
+    public final Auction getAuction() {
+        return this.auction;
     }
 }

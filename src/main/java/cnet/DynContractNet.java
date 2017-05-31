@@ -1,11 +1,7 @@
 package cnet;
 
 import agents.DroneParcel;
-import agents.DroneState;
 import agents.UAV;
-import com.google.common.base.Optional;
-import communication.AcceptanceMessage;
-import communication.AuctionResultMessage;
 import communication.BidMessage;
 
 import java.util.ArrayList;
@@ -24,7 +20,7 @@ public class DynContractNet extends ContractNet {
         DroneParcel parcel = auction.getParcel();
         double delTime = bidder.calculateDeliveryTime(parcel.getDeliveryLocation());
         Bid bid = new Bid(bidder, delTime, auction);
-        bidder.sendDirectMessage(new BidMessage(bid), auction.getModerator());
+        bidder.sendDirect(new BidMessage(bid), auction.getModerator());
         return true;
     }
 
@@ -63,7 +59,7 @@ public class DynContractNet extends ContractNet {
     }
 
     public void acceptAuction(Auction auction, UAV bidder) {
-        bidder.sendDirectMessage(new AcceptanceMessage(true, auction.getMyBid(bidder)),auction.getModerator());
+        bidder.sendDirect(new AcceptanceMessage(true, auction.getMyBid(bidder)),auction.getModerator());
     }
 
 
@@ -71,7 +67,7 @@ public class DynContractNet extends ContractNet {
         ArrayList<Auction> handledAuctions = new ArrayList<>();
         for (Auction auction : refusedAuctions) {
             if(!handledAuctions.contains(auction)) {
-                bidder.sendDirectMessage(new AcceptanceMessage(false, auction.getMyBid(bidder)), auction.getModerator());
+                bidder.sendDirect(new AcceptanceMessage(false, auction.getMyBid(bidder)), auction.getModerator());
                 handledAuctions.add(auction);
             }
         }
