@@ -6,8 +6,6 @@ package agents;
 
 import cnet.Auction;
 import cnet.Bid;
-import cnet.ContractNet;
-import cnet.StatContractNet;
 import com.github.rinde.rinsim.core.model.comm.CommDevice;
 import com.github.rinde.rinsim.core.model.comm.CommDeviceBuilder;
 import com.github.rinde.rinsim.core.model.comm.CommUser;
@@ -37,14 +35,12 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     private static final double RANGE = 2000.0D;
     private static final double RELIABILITY = 1.0D;
     private final HashMap<DroneParcel, AuctionState> auctions = new HashMap<>();
-    private ContractNet cnet;
     private final double updateFreq = 10.0D;
     private double lastUpdated;
 
     public DistributionCenter(Point position, double capacity) {
         super(position);
         this.setCapacity(capacity);
-        this.cnet = new StatContractNet();
         this.lastUpdated = 0.0;
     }
 
@@ -53,13 +49,16 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         // if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
         // this.checkMessages();
         this.handleMessages();
+        //this.activateAuctions();
 
-        // TODO: removeBidsFrom/replace this
-        if (this.lastUpdated > this.updateFreq) {
-            this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
-            this.lastUpdated = 0.0;
-        }
-        this.lastUpdated += 1;
+        System.out.println(this.availableParcels.size());
+
+//        // TODO: removeBidsFrom/replace this
+//        if (this.lastUpdated > this.updateFreq) {
+//            this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
+//            this.lastUpdated = 0.0;
+//        }
+//        this.lastUpdated += 1;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
@@ -189,6 +188,8 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         final PriorityQueue<Bid> bids = new PriorityQueue<>(Comparator.comparingDouble(Bid::getDeliveryTime));
         Optional<UAV> assignee = Optional.absent();
 
+        int unactive = 0;
+
         boolean assigneeEquals(UAV drone) {
             return this.assignee.isPresent() && this.assignee.get().equals(drone);
         }
@@ -203,7 +204,16 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
          */
         boolean add(Bid bid) {
             bids.add(bid);
+            this.unactive = 0;
             return bids.peek().equals(bid);
+        }
+
+        boolean forgotten() {
+            return this.unactive > 100;
+        }
+
+        void timestep(){
+            this.unactive++;
         }
 
         Optional<Bid> bestBid() {
@@ -225,6 +235,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         for (DroneParcel parcel : this.availableParcels) {
             if (parcel.equals(requestedParcel)) {
                 availableParcels.remove(parcel);
+                this.auctions.remove(parcel);
                 return parcel;
             }
         }
@@ -287,9 +298,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
 //        }
 //    }
 
-    @Override
-    public void afterTick(TimeLapse timeLapse) {}
-
 //    private List<TypedMessage> readMessages() {
 //        CommDevice device = this.commDevice.get();
 //        List<TypedMessage> contents = new ArrayList<>();
@@ -320,6 +328,27 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     @Override
     public String toString() {
         return ""; // FIXME overlapping RoadUser tags
+    }
+
+
+    private void activateAuctions() {
+        Set<DroneParcel> parcels = this.auctions.keySet();
+        for (DroneParcel parcel : parcels) {
+            AuctionState state = this.auctions.get(parcel);
+            if (state.forgotten()) {
+                final TypedMessage doneMsg = AuctionMessage.createAuctionDone(new Auction(parcel, this));
+                state.bids.stream()
+                        .map(Bid::getBidder)
+                        .forEach(drone -> sendDirect(doneMsg, drone));
+                this.auctions.put(parcel, new AuctionState());
+                this.onNewAuction(new Auction(parcel, this));
+            }
+        }
+    }
+
+    @Override
+    public void afterTick(TimeLapse timeLapse) {
+        this.auctions.values().forEach(state -> state.timestep());
     }
 
 }

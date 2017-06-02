@@ -6,6 +6,7 @@ package simulation;
 
 import agents.DistributionCenter;
 import agents.UAV;
+import agents.statUAV;
 import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
@@ -81,7 +82,7 @@ public final class SimGenerator {
         // create and register the depots
         for (int i = 0; i < DEPOTS; i++) {
             Point depotLocation = rm.getRandomPosition(rnd);
-            DistributionCenter depot = new DistributionCenter(depotLocation, 1337.0D, rnd);
+            DistributionCenter depot = new DistributionCenter(depotLocation, 1337.0D);
             sim.register(depot);
             depots.add(depot);
         }
@@ -90,7 +91,7 @@ public final class SimGenerator {
         for(int i = 0; i < UAVS; ++i) {
             double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
             Point startPos = rm.getRandomPosition(rnd);
-            UAV uav = new UAV(startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
+            UAV uav = new statUAV(startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
 

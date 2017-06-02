@@ -35,11 +35,10 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     private Optional<DroneParcel> parcel = Optional.absent();
     private Optional<CommDevice> commDevice = Optional.absent();
-    private DroneState state = DroneState.PICKING;
+    protected DroneState state = DroneState.PICKING;
     // private DynContractNet cnet;
     private Motor motor;
     // private List<Auction> auctions;
-    private HashMap<Auction, AuctionState> auctions = new HashMap<>();
     private LinkedList<Point> path = new LinkedList<>();
     private Optional<Point> closestDepot = Optional.absent();
 
@@ -48,8 +47,6 @@ public abstract class UAV extends Vehicle implements CommUser {
         // this.cnet = new DynContractNet();
         this.maxSpeed = maxSpeed;
         this.motor = new Motor(this, new Battery(batteryCapacity, this), motorPower);
-        this.auctions = new ArrayList<>();
-
     }
 
     public double getMaxSpeed() {
@@ -101,7 +98,7 @@ public abstract class UAV extends Vehicle implements CommUser {
             this.deliverParcel(time);
             break;
         case PICKING:
-            this.pickParcel(time);
+            this.move(time);
             break;
         case OUT_OF_SERVICE:
             this.goToNearestDepot(time);
@@ -141,7 +138,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         }
     }
 
-
+    protected abstract void move(TimeLapse time);
     protected abstract void onNewAuction(Auction auction);
     protected abstract void onAuctionWon(Bid bid);
     protected abstract void onAuctionLost(Auction auction);
@@ -164,7 +161,8 @@ public abstract class UAV extends Vehicle implements CommUser {
         }
     }
 
-    private void pickParcel(TimeLapse time) {
+
+    protected void pickParcel(TimeLapse time) {
         // TODO: participate in auctions, move around
         RoadModel rm = this.getRoadModel();
         PDPModel pm = this.getPDPModel();
@@ -176,7 +174,7 @@ public abstract class UAV extends Vehicle implements CommUser {
             pm.pickup(this, parcel, time);
             assert rm.containsObject(parcel);
             this.parcel = Optional.of(parcel);
-            this.setState(DroneState.DELIVERING);
+            this.state = DroneState.DELIVERING;
         }
         else {
             this.fly(depotPos, time);
@@ -190,7 +188,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (!this.motor.canFlyTime(flyTime, this.getSpeed())) {
             // Not enough power - crash!
             System.err.println("Drone " + this + " has crashed!");
-            this.setState(DroneState.NO_SERVICE);
+            this.state = DroneState.OUT_OF_SERVICE;
             return;
         }
 
@@ -250,7 +248,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         }
     }
 
-    private void goToNearestDepot(TimeLapse time) {
+    protected void goToNearestDepot(TimeLapse time) {
         // Make sure we have a path to the closest depot
         if (!this.closestDepot.isPresent())
             this.closestDepot = Optional.of(this.getNearestDepot());
@@ -272,15 +270,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         Battery battery = this.getMotor().getPowerSource();
         battery.charge();
         if (battery.isFull()) {
-            if (this.parcel.isPresent()) {
-                this.setState(DroneState.PICKING);
-            }
-            else if (!this.auctions.isEmpty()) {
-                this.setState(DroneState.IN_AUCTION);
-            }
-            else {
-                this.setState(DroneState.IDLE);
-            }
+            this.state = DroneState.PICKING;
         }
     }
 
@@ -405,6 +395,16 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     public DroneState getState() {
         return state;
+    }
+
+    protected Optional<DroneParcel> getParcel() {return this.parcel; }
+
+    protected void assignParcel(DroneParcel parcel) {
+        this.parcel = Optional.of(parcel);
+    }
+
+    protected void removeParcel() {
+        this.parcel = Optional.absent();
     }
 }
 
