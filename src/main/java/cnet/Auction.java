@@ -43,6 +43,13 @@ public final class Auction {
         return this.moderator;
     }
 
+    public boolean equals(Object obj) {
+        if (obj == null || !(obj instanceof Auction))
+            return false;
+        Auction other = (Auction) obj;
+        return this.parcel.equals(other.getParcel()) && this.moderator.equals(other.getModerator());
+    }
+
 //    @Override
 //    public boolean equals(Object other) {
 //        if (other instanceof Auction) {

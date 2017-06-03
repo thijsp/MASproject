@@ -92,6 +92,7 @@ public abstract class UAV extends Vehicle implements CommUser {
             throw new IllegalStateException("No commdevice in UAV");
 
         this.handleMessages();
+        //System.out.println(this.state);
 
         switch (this.state) { // TODO
         case DELIVERING:
@@ -156,7 +157,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (this.getRoadModel().getPosition(this).equals(destination)) {
             this.getPDPModel().deliver(this, parcel, time);
             this.parcel = Optional.absent();
-            //this.state = DroneState.PICKING;
+            this.state = DroneState.PICKING;
             this.onPackageDelivered(parcel); // TODO?
         }
     }
@@ -170,9 +171,9 @@ public abstract class UAV extends Vehicle implements CommUser {
         Point depotPos = this.parcel.get().getPickupLocation();
         if (pos.equals(depotPos)) {
             DistributionCenter parcelDepot = this.parcel.get().getDepot();
-            System.out.println("parcel " + parcel.toString() + " picked up by " + this.toString());
-            System.out.println(this.state);
-            DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
+            //DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
+            DroneParcel parcel = this.parcel.get();
+            this.sendDirect(AuctionMessage.createAcceptance(new Auction(parcel, parcelDepot)), parcelDepot);
             pm.pickup(this, parcel, time);
             assert rm.containsObject(parcel);
             this.parcel = Optional.of(parcel);
@@ -331,7 +332,7 @@ public abstract class UAV extends Vehicle implements CommUser {
 //        return this.cnet;
 //    }
 
-    private Motor getMotor() { return this.motor; }
+    protected Motor getMotor() { return this.motor; }
 
     public boolean wantsToBid(DroneParcel parcel) {
         RoadModel rm = this.getRoadModel();

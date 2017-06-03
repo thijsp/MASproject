@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class statUAV extends UAV {
 
-    protected HashMap<Auction, AuctionState> auctions = new HashMap<>();
+    protected HashMap<DroneParcel, AuctionState> parcels = new HashMap<>();
 
     public statUAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
         super(startPos, speed, batteryCapacity, motorPower, maxSpeed);
@@ -22,9 +22,22 @@ public class statUAV extends UAV {
 
     @Override
     protected void move(TimeLapse time) {
+        if (!this.parcels.isEmpty()) {
+            System.out.println(this.toString());
+        }
         Optional<DroneParcel> parcel = this.getParcel();
         if (parcel.isPresent()) {
             this.pickParcel(time);
+        }
+        else if (this.parcels.size() > 0) {
+            Optional<DroneParcel> nextParcel = this.getNextParcel();
+            if (nextParcel.isPresent()) {
+                this.assignParcel(nextParcel.get());
+                this.pickParcel(time);
+            }
+            else {
+                this.goToNearestDepot(time);
+            }
         }
         else {
             this.goToNearestDepot(time);
@@ -33,7 +46,27 @@ public class statUAV extends UAV {
 
     @Override
     protected void onNewAuction(Auction auction) {
-        //TODO: difference between states
+        switch (this.state) {
+            case DELIVERING:
+                //don't participate in new auctions
+                break;
+            case OUT_OF_SERVICE:
+                //don't participate in new auctions
+                break;
+            case PICKING:
+                // bid on auctions if not yet too many assignments
+                if (this.parcels.size() < 5) {
+                    bidOnAuction(auction);
+                }
+            case CHARGING:
+                // bid on auctions if not yet too many assignments and enough charged
+                if (this.parcels.size() < 5 && this.getMotor().getPowerSource().getBatteryLevel() > 0.8) {
+                    bidOnAuction(auction);
+                }
+        }
+    }
+
+    private void bidOnAuction(Auction auction) {
         DistributionCenter depot = auction.getModerator();
         DroneParcel parcel = auction.getParcel();
         if(this.wantsToBid(parcel)) {
@@ -47,27 +80,26 @@ public class statUAV extends UAV {
     @Override
     protected void onAuctionWon(Bid bid) {
         Auction auction = bid.getAuction();
-        if(this.getParcel().isPresent()) {
-            AuctionState state = new AuctionState();
-            state.addBid(bid);
-            this.auctions.put(auction, state);
-        }
-        else {
+        AuctionState state = new AuctionState();
+        state.addBid(bid);
+        this.parcels.put(auction.getParcel(), state);
+        if (!this.getParcel().isPresent()) {
             this.assignParcel(bid.getParcel());
         }
     }
 
     @Override
     protected void onAuctionLost(Auction auction) {
-        if (this.auctions.containsKey(auction)){
-            this.auctions.remove(auction);
+        DroneParcel lostParcel = auction.getParcel();
+        if (this.parcels.containsKey(lostParcel)) {
+            this.parcels.remove(lostParcel);
         }
         Optional<DroneParcel> parcel = this.getParcel();
         if (parcel.isPresent()) {
             if (parcel.get().equals(auction.getParcel())) {
                 this.removeParcel();
                 this.state = DroneState.PICKING;
-                if (!this.auctions.keySet().isEmpty()) {
+                if (!this.parcels.keySet().isEmpty()) {
                     Optional<DroneParcel> nextParcel = this.getNextParcel();
                     if (nextParcel.isPresent()) {
                         this.assignParcel(this.getNextParcel().get());
@@ -79,53 +111,43 @@ public class statUAV extends UAV {
 
     @Override
     protected void onAuctionDone(Auction auction) {
-        if(this.auctions.containsKey(auction)) {
-            this.auctions.remove(auction);
+        DroneParcel parcel = auction.getParcel();
+        if(this.parcels.containsKey(parcel)) {
+            this.parcels.remove(parcel);
         }
     }
 
     @Override
     protected void onPackageDelivered(DroneParcel parcel) {
-        System.out.println(this.toString() + " delivered " + parcel.toString());
-        Auction auction = new Auction(parcel, parcel.getDepot());
-        System.out.println(this.auctions.containsKey(auction));
-        this.auctions.remove(auction);
-        System.out.println(this.auctions.size());
-        Set<Auction> myAuctions = this.auctions.keySet();
-        if (!myAuctions.isEmpty()) {
+        //this.parcels.remove(parcel);
+        Set<DroneParcel> myParcels = this.parcels.keySet();
+        if (!myParcels.isEmpty()) {
             Optional<DroneParcel> nextParcel = this.getNextParcel();
             if(nextParcel.isPresent()) {
                 this.assignParcel(nextParcel.get());
-                System.out.println(this.toString() + " " + parcel.toString() + " " + this.state);
-                System.out.println(nextParcel.toString());
                 this.state = DroneState.PICKING;
-
             }
             else {
                 this.state = DroneState.OUT_OF_SERVICE;
             }
         }
-        else {
-            this.state = DroneState.PICKING;
-        }
     }
 
     public Optional<DroneParcel> getNextParcel() {
-        Set<Auction> myAuctions = this.auctions.keySet();
-        Iterator<Auction> it = myAuctions.iterator();
-        Auction nextAuction = it.next();
-        double delTime = this.auctions.get(nextAuction).myBid().get().getDeliveryTime();
+        Set<DroneParcel> myParcels = this.parcels.keySet();
+        Iterator<DroneParcel> it = myParcels.iterator();
+        DroneParcel nextParcel = it.next();
+        double delTime = this.parcels.get(nextParcel).myBid().get().getDeliveryTime();
         while (it.hasNext()) {
-            Auction auction = it.next();
-            System.out.println(auction.getParcel());
-            double thisDel = this.auctions.get(auction).myBid().get().getDeliveryTime();
+            DroneParcel parcel = it.next();
+            double thisDel = this.parcels.get(parcel).myBid().get().getDeliveryTime();
             if(thisDel < delTime) {
                 delTime = thisDel;
-                nextAuction = auction;
+                nextParcel = parcel;
             }
         }
-        if (this.wantsToBid(nextAuction.getParcel())) {
-            return Optional.of(nextAuction.getParcel());
+        if (this.wantsToBid(nextParcel)) {
+            return Optional.of(nextParcel);
         }
         else {
             return Optional.absent();
