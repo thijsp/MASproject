@@ -82,18 +82,17 @@ public class statUAV extends UAV {
                 if (this.parcels.size() < 5) {
                     bidOnAuction(auction);
                 }
+                break;
             case CHARGING:
                 // bid on auctions if not yet too many assignments and enough charged
                 if (this.parcels.size() < 5 && this.getMotor().getPowerSource().getBatteryLevel() > 0.8) {
                     bidOnAuction(auction);
                 }
+                break;
         }
     }
 
     private void bidOnAuction(Auction auction) {
-        if (this.parcels.containsKey(auction.getParcel())) {
-            System.out.println("already bidded");
-        }
         DistributionCenter depot = auction.getModerator();
         DroneParcel parcel = auction.getParcel();
         if(this.wantsToBid(parcel)) {

@@ -232,7 +232,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         // TODO removeBidsFrom method
         for (DroneParcel parcel : this.availableParcels) {
             if (parcel.equals(requestedParcel)) {
-                System.out.println("parcel deleted " + parcel.toString());
                 availableParcels.remove(parcel);
                 this.auctions.remove(parcel);
                 return parcel;
