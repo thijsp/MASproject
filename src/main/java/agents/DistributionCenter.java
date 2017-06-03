@@ -48,16 +48,9 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     @Override
     public void tick(TimeLapse _timeLapse) {
         // if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
-        // this.checkMessages();
         this.handleMessages();
         //this.activateAuctions();
 
-//        // TODO: removeBidsFrom/replace this
-//        if (this.lastUpdated > this.updateFreq) {
-//            this.getCnet().handleUnactiveAuctions(this.getUnactiveAuctions());
-//            this.lastUpdated = 0.0;
-//        }
-//        this.lastUpdated += 1;
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
@@ -178,10 +171,10 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         DroneParcel parcel = bid.getParcel();
         AuctionState state = this.auctions.get(parcel);
         if (!state.assigneeEquals(bid.getBidder())) {
-            throw new IllegalStateException("Drone is lying to depot, he didn't win this auction");
+            System.out.println(state.assignee);
+            throw new IllegalStateException("Drone " + bid.getBidder() + " is lying to depot, he didn't win this auction, parcel: " + parcel);
         }
         final TypedMessage doneMsg = AuctionMessage.createAuctionDone(auction);
-        // TODO: broadcast to all instead of direct messages?
         auctions.get(auction.getParcel()).bids.stream()
                 .map(Bid::getBidder)
                 .forEach(drone -> sendDirect(doneMsg, drone));
@@ -213,7 +206,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         }
 
         boolean forgotten() {
-            return this.unactive > 100;
+            return this.unactive > 10;
         }
 
         void timestep(){
@@ -332,28 +325,37 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
 
     @Override
     public String toString() {
-        return ""; // FIXME overlapping RoadUser tags
+        Point pos = this.getPosition().get();
+        return String.format("<Depot at (%.2f,%.2f)>", pos.x, pos.y);
+        //return ""; // FIXME overlapping RoadUser tags
     }
 
 
     private void activateAuctions() {
         Set<DroneParcel> parcels = this.auctions.keySet();
+        List<DroneParcel> changedParcels = new ArrayList<>();
         for (DroneParcel parcel : parcels) {
             AuctionState state = this.auctions.get(parcel);
             if (state.forgotten()) {
+                System.out.println("reactivated");
                 final TypedMessage doneMsg = AuctionMessage.createAuctionDone(new Auction(parcel, this));
                 state.bids.stream()
                         .map(Bid::getBidder)
                         .forEach(drone -> sendDirect(doneMsg, drone));
-                this.auctions.put(parcel, new AuctionState());
+                changedParcels.add(parcel);
                 this.onNewAuction(new Auction(parcel, this));
             }
+        }
+        for (DroneParcel parcel : changedParcels) {
+            this.auctions.replace(parcel, new AuctionState());
         }
     }
 
     @Override
     public void afterTick(TimeLapse timeLapse) {
-        this.auctions.values().forEach(state -> state.timestep());
+        if (timeLapse.getStartTime() % 1000000 == 0) {
+            this.auctions.values().forEach(state -> state.timestep());
+        }
     }
 
 }

@@ -29,14 +29,14 @@ public class statUAV extends UAV {
         }
         else if (this.parcels.size() > 0) {
             // if this UAV didn't have a parcel to pick up, check if it has remaining assigned tasks
-            // get the closest parcel first
+            // go the closest parcel first
             Optional<DroneParcel> nextParcel = this.getNextParcel();
             if (nextParcel.isPresent()) {
                 this.assignParcel(nextParcel.get());
                 this.pickParcel(time);
             }
             else {
-                // if this UAV has remaining taks but refuses to do any, decide what to do next
+                // if this UAV has remaining tasks but refuses to do any, decide what to do next
                 this.decideAction(time);
             }
         }
@@ -125,13 +125,7 @@ public class statUAV extends UAV {
         if (parcel.isPresent()) {
             if (parcel.get().equals(auction.getParcel())) {
                 this.removeParcel();
-                this.state = DroneState.PICKING;
-                if (!this.parcels.keySet().isEmpty()) {
-                    Optional<DroneParcel> nextParcel = this.getNextParcel();
-                    if (nextParcel.isPresent()) {
-                        this.assignParcel(this.getNextParcel().get());
-                    }
-                }
+                this.takeNextParcel();
             }
         }
     }
@@ -142,22 +136,29 @@ public class statUAV extends UAV {
         if(this.parcels.containsKey(parcel)) {
             this.parcels.remove(parcel);
         }
+        switch (this.state) {
+            case DELIVERING:
+                // done message is either about an other parcel, and this is already deleted
+                // or message is about this drone, thus neglect
+                break;
+            case PICKING:
+                // if this drone is picking the parcel of which the auction is over, stop
+                Optional<DroneParcel> currentParcel = this.getParcel();
+                if (currentParcel.isPresent()) {
+                    if (currentParcel.get().equals(parcel)) {
+                        this.removeParcel();
+                        this.takeNextParcel();
+                    }
+                }
+                break;
+        }
+        //onAuctionLost(auction);
     }
 
     @Override
     protected void onPackageDelivered(DroneParcel parcel) {
         //this.parcels.remove(parcel);
-        Set<DroneParcel> myParcels = this.parcels.keySet();
-        if (!myParcels.isEmpty()) {
-            Optional<DroneParcel> nextParcel = this.getNextParcel();
-            if(nextParcel.isPresent()) {
-                this.assignParcel(nextParcel.get());
-                this.state = DroneState.PICKING;
-            }
-            else {
-                this.state = DroneState.OUT_OF_SERVICE;
-            }
-        }
+        this.takeNextParcel();
     }
 
     public Optional<DroneParcel> getNextParcel() {
@@ -178,6 +179,20 @@ public class statUAV extends UAV {
         }
         else {
             return Optional.absent();
+        }
+    }
+
+    public void takeNextParcel() {
+        this.state = DroneState.PICKING;
+        if (!this.parcels.keySet().isEmpty()) {
+            Optional<DroneParcel> nextParcel = this.getNextParcel();
+            if(nextParcel.isPresent()) {
+                this.assignParcel(nextParcel.get());
+                this.state = DroneState.PICKING;
+            }
+            else {
+                this.state = DroneState.OUT_OF_SERVICE;
+            }
         }
     }
 

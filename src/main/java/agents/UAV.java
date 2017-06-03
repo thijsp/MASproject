@@ -157,6 +157,7 @@ public abstract class UAV extends Vehicle implements CommUser {
             this.getPDPModel().deliver(this, parcel, time);
             this.parcel = Optional.absent();
             this.state = DroneState.PICKING;
+            this.closestDepot = Optional.absent();  // force re-initialization of closest depot calculation
             this.onPackageDelivered(parcel); // TODO?
         }
     }
@@ -191,7 +192,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (!this.motor.canFlyTime(flyTime, this.getSpeed())) {
             // Not enough power - crash!
             System.err.println("Drone " + this + " has crashed!");
-            this.state = DroneState.OUT_OF_SERVICE;
+            //this.state = DroneState.OUT_OF_SERVICE;
             return;
         }
 
