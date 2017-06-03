@@ -40,7 +40,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     private Motor motor;
     // private List<Auction> auctions;
     private LinkedList<Point> path = new LinkedList<>();
-    private Optional<Point> closestDepot = Optional.absent();
+    protected Optional<Point> closestDepot = Optional.absent();
 
     public UAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).startPosition(startPos).build());
@@ -92,7 +92,6 @@ public abstract class UAV extends Vehicle implements CommUser {
             throw new IllegalStateException("No commdevice in UAV");
 
         this.handleMessages();
-        //System.out.println(this.state);
 
         switch (this.state) { // TODO
         case DELIVERING:
@@ -253,8 +252,9 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     protected void goToNearestDepot(TimeLapse time) {
         // Make sure we have a path to the closest depot
-        if (!this.closestDepot.isPresent())
+        if (!this.closestDepot.isPresent()) {
             this.closestDepot = Optional.of(this.getNearestDepot());
+        }
 
         // Move toward the depot
         this.fly(this.closestDepot.get(), time);
@@ -346,7 +346,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         return this.getMotor().canFlyDistance(distance, this.getSpeed());
     }
 
-    private Point getNearestDepot() {
+    protected Point getNearestDepot() {
         List<Point> shortestPath = DistributionCenter.getPathToClosest(this.getRoadModel(), this.getPosition().get());
         return shortestPath.get(shortestPath.size() - 1);
     }
@@ -409,6 +409,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     protected void removeParcel() {
         this.parcel = Optional.absent();
     }
+
 }
 
 

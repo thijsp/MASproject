@@ -51,8 +51,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         // this.checkMessages();
         this.handleMessages();
         //this.activateAuctions();
-        Collection<AuctionState> states = this.auctions.values();
-        states.stream().forEach(state -> this.printInfo(state));
 
 //        // TODO: removeBidsFrom/replace this
 //        if (this.lastUpdated > this.updateFreq) {
@@ -60,12 +58,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
 //            this.lastUpdated = 0.0;
 //        }
 //        this.lastUpdated += 1;
-    }
-
-    public void printInfo(AuctionState state) {
-        if (!state.bids.isEmpty()) {
-            System.out.println(state.bids.size());
-        }
     }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
@@ -122,7 +114,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         UAV bidder = bid.getBidder();
         AuctionState state = this.auctions.get(bid.getParcel());
         if (state.assigneeEquals(bidder)) {
-            System.err.println("New bid arrived from the winner of the auction - dropping previous assignment");
+            System.err.println("New bid arrived from the winner of the auction - dropping previous assignment " + bid.getParcel());
             state.assignee = Optional.absent();
         }
 

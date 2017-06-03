@@ -22,26 +22,50 @@ public class statUAV extends UAV {
 
     @Override
     protected void move(TimeLapse time) {
-        if (!this.parcels.isEmpty()) {
-            System.out.println(this.toString());
-        }
         Optional<DroneParcel> parcel = this.getParcel();
         if (parcel.isPresent()) {
+            // if this UAV was picking up a parcel, go along with this task
             this.pickParcel(time);
         }
         else if (this.parcels.size() > 0) {
+            // if this UAV didn't have a parcel to pick up, check if it has remaining assigned tasks
+            // get the closest parcel first
             Optional<DroneParcel> nextParcel = this.getNextParcel();
             if (nextParcel.isPresent()) {
                 this.assignParcel(nextParcel.get());
                 this.pickParcel(time);
             }
             else {
-                this.goToNearestDepot(time);
+                // if this UAV has remaining taks but refuses to do any, decide what to do next
+                this.decideAction(time);
             }
         }
         else {
+            // if no tasks left, just go charging in the nearest depot
             this.goToNearestDepot(time);
         }
+    }
+
+    private void decideAction(TimeLapse time) {
+        if (this.getPosition().get().equals(this.getNearestDepot())) {
+            // if the UAV is in a depot but it can still not deliver it's closest (and thus any) parcele refuse all
+            this.refuseParcels();
+        }
+        else {
+            // if the UAV isn't in a depot, just go to the closest depot
+            this.goToNearestDepot(time);
+        }
+    }
+
+    private void refuseParcels() {
+        // in this rare case, also static UAVs can refuse parcels
+        Set<DroneParcel> refusingParcels = this.parcels.keySet();
+        refusingParcels.stream()
+                .forEach(parcel ->
+                        this.sendDirect(BidMessage.
+                                createRefusal(this.parcels.get(parcel).myBid().get()), parcel.getDepot()));
+        this.parcels = new HashMap<>();
+        System.err.println("uav refused its parcels");
     }
 
     @Override
@@ -67,6 +91,9 @@ public class statUAV extends UAV {
     }
 
     private void bidOnAuction(Auction auction) {
+        if (this.parcels.containsKey(auction.getParcel())) {
+            System.out.println("already bidded");
+        }
         DistributionCenter depot = auction.getModerator();
         DroneParcel parcel = auction.getParcel();
         if(this.wantsToBid(parcel)) {
