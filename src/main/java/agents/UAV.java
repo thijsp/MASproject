@@ -171,11 +171,12 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (pos.equals(depotPos)) {
             DistributionCenter parcelDepot = this.parcel.get().getDepot();
             //DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
-            DroneParcel parcel = this.parcel.get();
-            this.sendDirect(AuctionMessage.createAcceptance(new Auction(parcel, parcelDepot)), parcelDepot);
-            pm.pickup(this, parcel, time);
-            assert rm.containsObject(parcel);
-            this.parcel = Optional.of(parcel);
+            DroneParcel currentParcel = this.parcel.get();
+            Bid dummyBid = new Bid(this, 0.0, new Auction(currentParcel, parcelDepot));
+            this.sendDirect(BidMessage.createBidRetrieval(dummyBid), parcelDepot);
+            pm.pickup(this, currentParcel, time);
+            assert rm.containsObject(currentParcel);
+            this.parcel = Optional.of(currentParcel);
             this.state = DroneState.DELIVERING;
         }
         else {

@@ -27,6 +27,10 @@ public final class BidMessage extends TypedMessage {
         return new BidMessage(MessageType.PARCEL_REFUSED, bid);
     }
 
+    public static BidMessage createBidRetrieval(Bid bid) {
+        return new BidMessage(MessageType.PARCEL_ACCEPTED, bid);
+    }
+
     public final Bid getBid() {
         return this.bid;
     }

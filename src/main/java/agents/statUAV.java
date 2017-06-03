@@ -64,8 +64,9 @@ public class statUAV extends UAV {
                 .forEach(parcel ->
                         this.sendDirect(BidMessage.
                                 createRefusal(this.parcels.get(parcel).myBid().get()), parcel.getDepot()));
+        System.out.println("uav " + this + " refused its parcels" + refusingParcels);
         this.parcels = new HashMap<>();
-        System.err.println("uav refused its parcels");
+
     }
 
     @Override

@@ -90,7 +90,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
                 this.onParcelRefused(((BidMessage) msg).getBid());
                 break;
             case PARCEL_ACCEPTED:
-                this.onParcelAccepted(((AuctionMessage) msg).getAuction());
+                this.onParcelAccepted(((BidMessage) msg).getBid());
                 break;
             default:
                 // Unknown message received
@@ -170,10 +170,16 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     /**
      * A PARCEL_ACCEPTED message was received.
      * The parcel has been picked up, so the corresponding auction may now be destroyed.
-     * @param auction The auction corresponding to the parcel that was picked up
+     * @param bid The bid corresponding to the parcel that was picked up and UAV that is picking it up
      */
-    private void onParcelAccepted(Auction auction) {
+    private void onParcelAccepted(Bid bid) {
         // Message informing recipient that the auction is finished.
+        Auction auction = bid.getAuction();
+        DroneParcel parcel = bid.getParcel();
+        AuctionState state = this.auctions.get(parcel);
+        if (!state.assigneeEquals(bid.getBidder())) {
+            throw new IllegalStateException("Drone is lying to depot, he didn't win this auction");
+        }
         final TypedMessage doneMsg = AuctionMessage.createAuctionDone(auction);
         // TODO: broadcast to all instead of direct messages?
         auctions.get(auction.getParcel()).bids.stream()
