@@ -143,7 +143,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     protected abstract void onAuctionWon(Bid bid);
     protected abstract void onAuctionLost(Auction auction);
     protected abstract void onAuctionDone(Auction auction);
-    protected abstract void onPackageDelivered(); // TODO?
+    protected abstract void onPackageDelivered(DroneParcel parcel); // TODO?
 
     private void deliverParcel(TimeLapse time) {
         DroneParcel parcel = this.parcel.get();
@@ -156,8 +156,8 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (this.getRoadModel().getPosition(this).equals(destination)) {
             this.getPDPModel().deliver(this, parcel, time);
             this.parcel = Optional.absent();
-            this.state = DroneState.PICKING;
-            this.onPackageDelivered(); // TODO?
+            //this.state = DroneState.PICKING;
+            this.onPackageDelivered(parcel); // TODO?
         }
     }
 
@@ -170,6 +170,8 @@ public abstract class UAV extends Vehicle implements CommUser {
         Point depotPos = this.parcel.get().getPickupLocation();
         if (pos.equals(depotPos)) {
             DistributionCenter parcelDepot = this.parcel.get().getDepot();
+            System.out.println("parcel " + parcel.toString() + " picked up by " + this.toString());
+            System.out.println(this.state);
             DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
             pm.pickup(this, parcel, time);
             assert rm.containsObject(parcel);
@@ -364,7 +366,7 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     /**
      * @pre wonAuctions is not empty
-     * @param wonAuctions
+     * @param
      * @return
      */
 //    private Optional<Auction> getBestAuction(List<Auction> wonAuctions) {

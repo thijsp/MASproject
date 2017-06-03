@@ -21,6 +21,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import communication.*;
 
+//import java.util.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -51,7 +52,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         this.handleMessages();
         //this.activateAuctions();
 
-        System.out.println(this.availableParcels.size());
 
 //        // TODO: removeBidsFrom/replace this
 //        if (this.lastUpdated > this.updateFreq) {
@@ -180,7 +180,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         auctions.get(auction.getParcel()).bids.stream()
                 .map(Bid::getBidder)
                 .forEach(drone -> sendDirect(doneMsg, drone));
-
         this.auctions.remove(auction.getParcel());
     }
 
@@ -234,11 +233,13 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         // TODO removeBidsFrom method
         for (DroneParcel parcel : this.availableParcels) {
             if (parcel.equals(requestedParcel)) {
+                System.out.println("parcel deleted " + parcel.toString());
                 availableParcels.remove(parcel);
                 this.auctions.remove(parcel);
                 return parcel;
             }
         }
+        System.out.println("illegal parcel: " + requestedParcel.toString());
         throw new IllegalArgumentException("no such parcel available");
     }
 

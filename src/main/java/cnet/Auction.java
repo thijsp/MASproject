@@ -43,6 +43,15 @@ public final class Auction {
         return this.moderator;
     }
 
+//    @Override
+//    public boolean equals(Object other) {
+//        if (other instanceof Auction) {
+//            Auction auction = (Auction)other;
+//            return this.parcel.equals(auction.getParcel()) && this.moderator.equals(auction.getModerator());
+//        }
+//        return false;
+//    }
+
 
     // TODO move all of this to the DistributionCenter
 

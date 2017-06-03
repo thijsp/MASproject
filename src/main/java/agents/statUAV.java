@@ -7,10 +7,7 @@ import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
 import communication.BidMessage;
 
-import javax.swing.text.html.Option;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.PriorityQueue;
+import java.util.*;
 
 /**
  * Created by thijspeirelinck on 2/06/17.
@@ -36,6 +33,7 @@ public class statUAV extends UAV {
 
     @Override
     protected void onNewAuction(Auction auction) {
+        //TODO: difference between states
         DistributionCenter depot = auction.getModerator();
         DroneParcel parcel = auction.getParcel();
         if(this.wantsToBid(parcel)) {
@@ -69,6 +67,12 @@ public class statUAV extends UAV {
             if (parcel.get().equals(auction.getParcel())) {
                 this.removeParcel();
                 this.state = DroneState.PICKING;
+                if (!this.auctions.keySet().isEmpty()) {
+                    Optional<DroneParcel> nextParcel = this.getNextParcel();
+                    if (nextParcel.isPresent()) {
+                        this.assignParcel(this.getNextParcel().get());
+                    }
+                }
             }
         }
     }
@@ -81,8 +85,51 @@ public class statUAV extends UAV {
     }
 
     @Override
-    protected void onPackageDelivered() {
+    protected void onPackageDelivered(DroneParcel parcel) {
+        System.out.println(this.toString() + " delivered " + parcel.toString());
+        Auction auction = new Auction(parcel, parcel.getDepot());
+        System.out.println(this.auctions.containsKey(auction));
+        this.auctions.remove(auction);
+        System.out.println(this.auctions.size());
+        Set<Auction> myAuctions = this.auctions.keySet();
+        if (!myAuctions.isEmpty()) {
+            Optional<DroneParcel> nextParcel = this.getNextParcel();
+            if(nextParcel.isPresent()) {
+                this.assignParcel(nextParcel.get());
+                System.out.println(this.toString() + " " + parcel.toString() + " " + this.state);
+                System.out.println(nextParcel.toString());
+                this.state = DroneState.PICKING;
 
+            }
+            else {
+                this.state = DroneState.OUT_OF_SERVICE;
+            }
+        }
+        else {
+            this.state = DroneState.PICKING;
+        }
+    }
+
+    public Optional<DroneParcel> getNextParcel() {
+        Set<Auction> myAuctions = this.auctions.keySet();
+        Iterator<Auction> it = myAuctions.iterator();
+        Auction nextAuction = it.next();
+        double delTime = this.auctions.get(nextAuction).myBid().get().getDeliveryTime();
+        while (it.hasNext()) {
+            Auction auction = it.next();
+            System.out.println(auction.getParcel());
+            double thisDel = this.auctions.get(auction).myBid().get().getDeliveryTime();
+            if(thisDel < delTime) {
+                delTime = thisDel;
+                nextAuction = auction;
+            }
+        }
+        if (this.wantsToBid(nextAuction.getParcel())) {
+            return Optional.of(nextAuction.getParcel());
+        }
+        else {
+            return Optional.absent();
+        }
     }
 
     private static class AuctionState {
@@ -94,5 +141,12 @@ public class statUAV extends UAV {
         Optional<Bid> myBid() {return this.myBid; }
 
         void addBid(Bid bid) {this.myBid = Optional.of(bid);}
+    }
+
+    @Override
+    public String toString() {
+        Point pos = this.getPosition().get();
+        //return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getBatteryLevel());
+        return String.valueOf(this.hashCode());
     }
 }
