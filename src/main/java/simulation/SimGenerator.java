@@ -18,7 +18,9 @@ import com.github.rinde.rinsim.ui.View.Builder;
 import com.github.rinde.rinsim.ui.renderers.NoFlyZoneRoadModelRenderer;
 import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
 import geom.Rectangle;
+import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.random.AbstractRandomGenerator;
 import org.eclipse.swt.graphics.RGB;
 
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ public final class SimGenerator {
     static final int MAX_PARCELS = 400;
 
     static final boolean TESTING = true;
+    static final boolean randomDepots = true;
 
     private SimGenerator() {
     }
@@ -79,9 +82,17 @@ public final class SimGenerator {
         RandomGenerator rnd = sim.getRandomGenerator();
 
         ArrayList<DistributionCenter> depots = new ArrayList<>();
+        JDKRandomGenerator gen = new JDKRandomGenerator();
+        gen.setSeed(124L);
         // create and register the depots
         for (int i = 0; i < DEPOTS; i++) {
-            Point depotLocation = rm.getRandomPosition(rnd);
+            Point depotLocation;
+            if (randomDepots) {
+                depotLocation = rm.getRandomPosition(gen);
+            }
+            else {
+                depotLocation = rm.getRandomPosition(rnd);
+            }
             DistributionCenter depot = new DistributionCenter(depotLocation, 1337.0D);
             sim.register(depot);
             depots.add(depot);
@@ -104,6 +115,7 @@ public final class SimGenerator {
 
         sim.start();
     }
+
 
     public static double getRandomSpeed(RandomGenerator rnd, double minSpeed, double maxSpeed) {
         double random = rnd.nextDouble();
