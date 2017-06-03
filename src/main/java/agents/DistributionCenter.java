@@ -49,7 +49,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     public void tick(TimeLapse _timeLapse) {
         // if (!this.commDevice.isPresent()) {throw new IllegalStateException("No commdevice in depot"); }
         this.handleMessages();
-        //this.activateAuctions();
+        this.activateAuctions();
 
     }
 
