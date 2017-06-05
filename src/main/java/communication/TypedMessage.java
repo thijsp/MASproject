@@ -13,6 +13,10 @@ public abstract class TypedMessage implements MessageContents {
         this.type = type;
     }
 
+    abstract String getDescription();
+    public String toString() {
+        return String.format("<Message.%s [%s]>", this.type, this.getDescription());
+    }
 //    public MessageType getType() {
 //        return this.type;
 //    }

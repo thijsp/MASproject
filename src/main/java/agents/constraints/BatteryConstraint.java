@@ -28,7 +28,7 @@ public class BatteryConstraint extends ConstraintHandler {
     }
 
     public boolean isAllowedCharge(double newCharge) {
-        double newChargeRate = newCharge/this.getBattery().getCapacity();
+        double newChargeRate = newCharge/this.getBattery().capacity;
         return isSatisfied(newChargeRate);
     }
 }

@@ -6,7 +6,7 @@ import agents.UAV;
 /**
  * A Bid represents a non-binding claim by a UAV that it can deliver a parcel in the given time frame.
  */
-public class Bid {
+public final class Bid {
 
     private final double deliveryTime;
     private final UAV bidder;
@@ -39,4 +39,8 @@ public class Bid {
 //        this.auction = auction;
 //    }
 
+    @Override
+    public String toString() {
+        return String.format("<Bid by %s for %s [time %.03f]>", this.bidder, this.auction, this.deliveryTime);
+    }
 }

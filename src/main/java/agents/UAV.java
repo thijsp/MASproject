@@ -6,7 +6,8 @@ package agents;
 
 import agents.accessories.Battery;
 import agents.accessories.Motor;
-import cnet.*;
+import cnet.Auction;
+import cnet.Bid;
 import com.github.rinde.rinsim.core.model.comm.*;
 import com.github.rinde.rinsim.core.model.pdp.PDPModel;
 import com.github.rinde.rinsim.core.model.pdp.Vehicle;
@@ -21,8 +22,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import communication.*;
 
-import javax.measure.Measure;
-import javax.measure.quantity.Length;
 import javax.measure.unit.SI;
 
 import java.util.*;
@@ -33,18 +32,17 @@ public abstract class UAV extends Vehicle implements CommUser {
     private static final int CAPACITY = 1;
     private final double maxSpeed;
 
-    private Optional<DroneParcel> parcel = Optional.absent();
+    private final int id;
+    Optional<DroneParcel> parcel = Optional.absent();
     private Optional<CommDevice> commDevice = Optional.absent();
     protected DroneState state = DroneState.PICKING;
-    // private DynContractNet cnet;
     private Motor motor;
-    // private List<Auction> auctions;
     private LinkedList<Point> path = new LinkedList<>();
     protected Optional<Point> closestDepot = Optional.absent();
 
-    public UAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
+    UAV(int id, Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
         super(VehicleDTO.builder().capacity(CAPACITY).speed(speed).startPosition(startPos).build());
-        // this.cnet = new DynContractNet();
+        this.id = id;
         this.maxSpeed = maxSpeed;
         this.motor = new Motor(this, new Battery(batteryCapacity, this), motorPower);
     }
@@ -52,32 +50,6 @@ public abstract class UAV extends Vehicle implements CommUser {
     public double getMaxSpeed() {
         return this.maxSpeed;
     }
-
-//    private void setState(DroneState state) {
-//        if (!this.satisfiesPreconditions(state)) {
-//            throw new IllegalStateException("Cannot change to this state: " + state);
-//        }
-//        this.state = state;
-//    }
-
-//    private boolean satisfiesPreconditions(DroneState state) {
-//        if (state.equals(DroneState.PICKING)) {
-//            return (this.parcel.isPresent());
-//        }
-//        if (state.equals(DroneState.DELIVERING)) {
-//            return this.parcel.isPresent();
-//        }
-//        if (state.equals(DroneState.IDLE)) {
-//            return (!this.parcel.isPresent());
-//        }
-//        if (state.equals(DroneState.IN_AUCTION)) {
-//            return (!this.parcel.isPresent());
-//        }
-//        if (state.equals(DroneState.NO_SERVICE)) {
-//            return (!this.parcel.isPresent());
-//        }
-//        return true;
-//    }
 
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
 
@@ -88,6 +60,7 @@ public abstract class UAV extends Vehicle implements CommUser {
      * @param time The time lapse available this tick
      */
     protected void tickImpl(TimeLapse time) {
+        // System.out.println("TimeLapse: " + time);
         if (!this.commDevice.isPresent())
             throw new IllegalStateException("No commdevice in UAV");
 
@@ -119,6 +92,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     }
 
     private void onMessage(TypedMessage msg) {
+        // System.out.println(String.format("%s received message\t%s", this, msg));
         switch (msg.type) {
             case NEW_AUCTION:
                 this.onNewAuction(((AuctionMessage) msg).getAuction());
@@ -144,6 +118,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     protected abstract void onAuctionLost(Auction auction);
     protected abstract void onAuctionDone(Auction auction);
     protected abstract void onPackageDelivered(DroneParcel parcel); // TODO?
+    protected abstract void onFullyCharged();
 
     private void deliverParcel(TimeLapse time) {
         DroneParcel parcel = this.parcel.get();
@@ -162,33 +137,28 @@ public abstract class UAV extends Vehicle implements CommUser {
         }
     }
 
-
     protected void pickParcel(TimeLapse time) {
         // TODO: participate in auctions, move around
         RoadModel rm = this.getRoadModel();
-        PDPModel pm = this.getPDPModel();
         Point pos = rm.getPosition(this);
         Point depotPos = this.parcel.get().getPickupLocation();
+        this.fly(depotPos, time);
         if (pos.equals(depotPos)) {
             DistributionCenter parcelDepot = this.parcel.get().getDepot();
-            //DroneParcel parcel = parcelDepot.getParcel(this.parcel.get());
             DroneParcel currentParcel = this.parcel.get();
             Bid dummyBid = new Bid(this, 0.0, new Auction(currentParcel, parcelDepot));
             this.sendDirect(BidMessage.createBidRetrieval(dummyBid), parcelDepot);
-            pm.pickup(this, currentParcel, time);
+            this.getPDPModel().pickup(this, currentParcel, time);
             assert rm.containsObject(currentParcel);
-            this.parcel = Optional.of(currentParcel);
             this.state = DroneState.DELIVERING;
-        }
-        else {
-            this.fly(depotPos, time);
+            this.closestDepot = Optional.absent();
         }
     }
 
-    private void fly(Point destLoc, TimeLapse time) {
+    void fly(Point destLoc, TimeLapse time) {
         RoadModel rm = this.getRoadModel();
 
-        double flyTime = time.getTickLength()/ (1000); // in sec
+        double flyTime = time.getTickLength() / 1000; // in sec
         if (!this.motor.canFlyTime(flyTime, this.getSpeed())) {
             // Not enough power - crash!
             System.err.println("Drone " + this + " has crashed!");
@@ -210,37 +180,6 @@ public abstract class UAV extends Vehicle implements CommUser {
         this.getMotor().drainPower(progress.time().doubleValue(SI.SECOND), this.getSpeed());
     }
 
-//    private void dealWithAuctions() {
-//        List<TypedMessage> messages = this.readMessageContents();
-//        List<Auction> availableAuctions = this.getAvailableAuctions(messages);
-//        List<Auction> biddedAuctions = this.getCnet().bidOnAvailableAuction(availableAuctions, this);
-//        this.addAuctions(biddedAuctions);
-//        List<AuctionResultMessage> resultMessages = this.getAuctionResults(messages);
-//        if (!resultMessages.isEmpty() ) {
-//            AuctionResult allAuctions = this.getCnet().defineAuctionResult(resultMessages);
-//            List<Auction> lostAuctions = allAuctions.getLostAuctions();
-//            List<Auction> wonAuctions = allAuctions.getWonAuctions();
-//            this.deleteAuctions(lostAuctions);
-//            this.deleteAuctions(wonAuctions);
-//            if (!wonAuctions.isEmpty()) {
-//                Optional<Auction> auction = this.getBestAuction(wonAuctions);
-//                if (auction.isPresent()) {
-//                    wonAuctions.remove(auction.get());
-//                    this.getCnet().refuseAuctions(wonAuctions, this);
-//                    this.getCnet().acceptAuction(auction.get(), this);
-//                    this.parcel = Optional.of(auction.get().getParcel());
-//                    this.setState(DroneState.PICKING);
-//                } else {
-//                    this.getCnet().refuseAuctions(wonAuctions, this);
-//                    this.setState(DroneState.NO_SERVICE);
-//                }
-//            }
-//        }
-//        if (this.state.equals(DroneState.IN_AUCTION) & this.auctions.isEmpty() ) {
-//            this.setState(DroneState.IDLE);
-//        }
-//    }
-
     private Optional<LinkedList<Point>> computeShortestPath(Point dest) {
         final RoadModel rm = this.getRoadModel();
         final Point pos = rm.getPosition(this);
@@ -254,9 +193,8 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     protected void goToNearestDepot(TimeLapse time) {
         // Make sure we have a path to the closest depot
-        if (!this.closestDepot.isPresent()) {
+        if (!this.closestDepot.isPresent())
             this.closestDepot = Optional.of(this.getNearestDepot());
-        }
 
         // Move toward the depot
         this.fly(this.closestDepot.get(), time);
@@ -270,49 +208,21 @@ public abstract class UAV extends Vehicle implements CommUser {
 
     }
 
-    private void chargeBattery(TimeLapse time) {
+    void chargeBattery(TimeLapse time) {
         // TODO: use time lapse in battery charging, participate in auctions (?)
         Battery battery = this.getMotor().getPowerSource();
-        battery.charge();
-        if (battery.isFull()) {
-            this.state = DroneState.PICKING;
-        }
+        battery.chargeFor(time);
+        if (battery.isFull())
+            this.onFullyCharged();
     }
 
-    public double calculateDeliveryTime(Point loc) {
-        RoadModel rm = this.getRoadModel();
-        List<Point> shortestPathTo = rm.getShortestPathTo(this, loc);
-        Measure<Double, Length> distanceOfPath = rm.getDistanceOfPath(shortestPathTo); // length in km, speed in km/h
-        double pathLength = distanceOfPath.getValue();
-        double speed = this.getSpeed();
-        return pathLength / speed;
+    public double calculateDeliveryTime(DroneParcel parcel) {
+        Point pickupLoc = parcel.getPickupLocation();
+        LinkedList<Point> pathToPickup = this.computeShortestPath(pickupLoc).get();
+        List<Point> deliveryPath = Lists.newArrayList(Iterables.concat(pathToPickup, parcel.getShortestPath()));
+        double pathLength = this.getRoadModel().getDistanceOfPath(deliveryPath).getValue();
+        return pathLength / this.getSpeed();
     }
-
-//    public List<Auction> getAvailableAuctions(List<TypedMessage> messages) {
-//        return messages.stream()
-//                .filter(msg -> msg.type == MessageType.NEW_AUCTION)
-//                .map(msg -> ((AuctionMessage) msg).getAuction())
-//                .filter(auction -> !this.auctions.contains(auction))
-//                .collect(Collectors.toList());
-//    }
-
-//    public List<AuctionResultMessage> getAuctionResults(List<TypedMessage> messages) {
-//        return messages.stream()
-//                .filter(msg -> msg.getType() == MessageType.AUCTION_RESULT)
-//                .map(AuctionResultMessage.class::cast)
-//                .collect(Collectors.toList());
-//    }
-
-//    public List<TypedMessage> readMessageContents() {
-//        CommDevice device = this.commDevice.get();
-//        List<TypedMessage> contents = new ArrayList<>();
-//        if (device.getUnreadCount() != 0) {
-//            ImmutableList<Message> messages = device.getUnreadMessages();
-//            contents = this.getCnet().getMessageContent(messages);
-//        }
-//        return contents;
-//    }
-
 
     public void sendDirect(TypedMessage content, CommUser recipient) {
         CommDevice device = this.commDevice.get();
@@ -327,24 +237,24 @@ public abstract class UAV extends Vehicle implements CommUser {
     @Override
     public void setCommDevice(CommDeviceBuilder commDeviceBuilder) {
         commDeviceBuilder.setMaxRange(UAV.RANGE);
-        this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
+        this.commDevice = Optional.of(commDeviceBuilder.setReliability(UAV.RELIABILITY).build());
     }
-
-//    public DynContractNet getCnet() {
-//        return this.cnet;
-//    }
 
     protected Motor getMotor() { return this.motor; }
 
-    public boolean wantsToBid(DroneParcel parcel) {
-        RoadModel rm = this.getRoadModel();
-        Point destLoc = parcel.getDeliveryLocation();
+    Optional<List<Point>> fullDeliveryPath(DroneParcel parcel) {
         Point pickupLoc = parcel.getPickupLocation();
         Optional<LinkedList<Point>> pathToPickup = this.computeShortestPath(pickupLoc);
         if (!pathToPickup.isPresent())
+            return Optional.absent();
+        return Optional.of(Lists.newArrayList(Iterables.concat(pathToPickup.get(), parcel.getShortestPath(), parcel.getShortestEscape())));
+    }
+
+    public boolean wantsToBid(DroneParcel parcel) {
+        Optional<List<Point>> fullPath = fullDeliveryPath(parcel);
+        if (!fullPath.isPresent())
             return false;
-        List<Point> fullPath = Lists.newArrayList(Iterables.concat(pathToPickup.get(), parcel.getShortestPath(), parcel.getShortestEscape()));
-        double distance = rm.getDistanceOfPath(fullPath).getValue();
+        double distance = this.getRoadModel().getDistanceOfPath(fullPath.get()).getValue();
         return this.getMotor().canFlyDistance(distance, this.getSpeed());
     }
 
@@ -356,53 +266,12 @@ public abstract class UAV extends Vehicle implements CommUser {
     @Override
     public String toString() {
         Point pos = this.getPosition().get();
-        return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getBatteryLevel());
+        return String.format("<UAV %2d at (%.2f,%.2f) [Bat%3d%%]>", this.id, pos.x, pos.y, (int) (100*this.motor.getPowerSource().getBatteryLevel()));
     }
 
-//    private void addAuctions(List<Auction> auctions) {
-//        this.auctions.addAll(auctions);
-//    }
-
-//    private void deleteAuctions(List<Auction> auctions) {
-//        this.auctions.removeAll(auctions);
-//    }
-
-    /**
-     * @pre wonAuctions is not empty
-     * @param
-     * @return
-     */
-//    private Optional<Auction> getBestAuction(List<Auction> wonAuctions) {
-//        java.util.Optional<Auction> best = wonAuctions.stream()
-//                .min(Comparator.comparingDouble(auction -> auction.getMyBid(this).getBid()))
-//                .filter()
-//        best.
-//        // best.flatMap(auction -> this.wantsToBid(auction.getParcel()))
-//        return (best.isPresent() && this.wantsToBid(best.get().getParcel()) ? Optional.of(best.get()) : Optional.absent();
-//        Auction bestAuction = wonAuctions.get(0);
-//        Bid myBestBid = bestAuction.getMyBid(this);
-//        int i = 1;
-//        while (i < wonAuctions.size()) {
-//            Auction auction = wonAuctions.get(i);
-//            Bid bid = auction.getMyBid(this);
-//            if (bid.getDeliveryTime() < myBestBid.getDeliveryTime()) {
-//                myBestBid = bid;
-//                bestAuction = auction;
-//            }
-//            i++;
-//        }
-//        if (this.wantsToBid(bestAuction.getParcel())) {
-//            return Optional.of(bestAuction);
-//        } else {
-//            return Optional.absent();
-//        }
-//    }
-
-    public DroneState getState() {
-        return state;
+    protected Optional<DroneParcel> getParcel() {
+        return this.parcel;
     }
-
-    protected Optional<DroneParcel> getParcel() {return this.parcel; }
 
     protected void assignParcel(DroneParcel parcel) {
         this.parcel = Optional.of(parcel);

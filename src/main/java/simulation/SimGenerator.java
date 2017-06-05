@@ -5,8 +5,8 @@ package simulation;
  */
 
 import agents.DistributionCenter;
+import agents.DynamicUAV;
 import agents.UAV;
-import agents.statUAV;
 import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
 import com.github.rinde.rinsim.core.model.pdp.DefaultPDPModel;
@@ -20,11 +20,9 @@ import com.github.rinde.rinsim.ui.renderers.RoadUserRenderer;
 import geom.Rectangle;
 import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.commons.math3.random.RandomGenerator;
-import org.apache.commons.math3.random.AbstractRandomGenerator;
 import org.eclipse.swt.graphics.RGB;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -36,17 +34,16 @@ public final class SimGenerator {
 
     static final Point MIN_POINT = new Point(0.0D, 0.0D);
     static final Point MAX_POINT = new Point(10.0D, 10.0D);
-    static final long TICK_LENGTH = 1000L;
     static final long RANDOM_SEED = 124L;
     static final int TEST_SPEEDUP = 30;
     static final long TEST_STOP_TIME = 6000000000L;
 
     static final int DEPOTS = 3;
-    static final int UAVS = 20;
+    static final int UAVS = 4;
     static final int MAX_PARCELS = 400;
 
     static final boolean TESTING = true;
-    static final boolean randomDepots = true;
+    static final boolean RANDOM_DEPOTS = true;
 
     private SimGenerator() {
     }
@@ -85,24 +82,24 @@ public final class SimGenerator {
         JDKRandomGenerator gen = new JDKRandomGenerator();
         gen.setSeed(124L);
         // create and register the depots
-        for (int i = 0; i < DEPOTS; i++) {
+        for (int i = 1; i <= DEPOTS; i++) {
             Point depotLocation;
-            if (randomDepots) {
+            if (RANDOM_DEPOTS) {
                 depotLocation = rm.getRandomPosition(gen);
             }
             else {
                 depotLocation = rm.getRandomPosition(rnd);
             }
-            DistributionCenter depot = new DistributionCenter(depotLocation, 1337.0D);
+            DistributionCenter depot = new DistributionCenter(i, depotLocation, 1337.0D);
             sim.register(depot);
             depots.add(depot);
         }
 
         // create and register the UAVs
-        for(int i = 0; i < UAVS; ++i) {
+        for(int i = 1; i <= UAVS; ++i) {
             double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
             Point startPos = rm.getRandomPosition(rnd);
-            UAV uav = new statUAV(startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
+            UAV uav = new DynamicUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
 

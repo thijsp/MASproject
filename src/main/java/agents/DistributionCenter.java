@@ -18,29 +18,32 @@ import com.github.rinde.rinsim.core.model.time.TimeLapse;
 import com.github.rinde.rinsim.geom.PathNotFoundException;
 import com.github.rinde.rinsim.geom.Point;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import communication.*;
+import communication.AuctionMessage;
+import communication.BidMessage;
+import communication.TypedMessage;
 
 //import java.util.*;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 
-public class DistributionCenter extends Depot implements CommUser, TickListener {
+public final class DistributionCenter extends Depot implements CommUser, TickListener {
 
+    private final int id;
     private List<DroneParcel> availableParcels = new ArrayList<>();
     private Optional<CommDevice> commDevice = Optional.absent();
     private static final double RANGE = 2000.0D;
     private static final double RELIABILITY = 1.0D;
     private final HashMap<DroneParcel, AuctionState> auctions = new HashMap<>();
+    private final HashMap<DroneParcel, ArrayList<Bid>> receivedBids = new HashMap();
     private final double updateFreq = 10.0D;
     private double lastUpdated;
 
-    public DistributionCenter(Point position, double capacity) {
+    public DistributionCenter(int id, Point position, double capacity) {
         super(position);
+        this.id = id;
         this.setCapacity(capacity);
         this.lastUpdated = 0.0;
     }
@@ -57,7 +60,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     public void addParcel(DroneParcel parcel) {
         checkArgument(!this.auctions.containsKey(parcel), "Auction for parcel %s already exists in this DistributionCenter", parcel);
 
-        this.availableParcels.add(parcel); // TODO removeBidsFrom
+        this.availableParcels.add(parcel); // TODO remove
 
         this.auctions.put(parcel, new AuctionState());
         this.onNewAuction(new Auction(parcel, this));
@@ -71,9 +74,11 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
                 .map(Message::getContents)
                 .map(TypedMessage.class::cast)
                 .forEach(this::onMessage);
+        this.onMessagesHandled();
     }
 
     private void onMessage(TypedMessage msg) {
+        // System.out.println(String.format("%s received message\t%s", this, msg));
         switch (msg.type) {
             case NEW_BID:
                 this.onNewBid(((BidMessage) msg).getBid());
@@ -86,12 +91,42 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
                 break;
             default:
                 // Unknown message received
-                System.err.println(String.format("Unknown message of type %s received: %s", msg.type, msg));
+                // System.err.println(String.format("Unknown message of type %s received: %s", msg.type, msg));
         }
     }
 
+    private void onMessagesHandled() {
+        for (DroneParcel parcel : this.receivedBids.keySet()) {
+            AuctionState state = this.auctions.get(parcel);
+            List<Bid> newBids = this.receivedBids.get(parcel);
+
+            if (state == null)
+                System.out.println();
+
+            state.addAll(newBids);
+
+            Bid best = state.bestBid().get();
+            if (newBids.contains(best)) {
+                // New optimal bid
+                if (state.assignee.isPresent()) {
+                    // Inform the previous winner of the disaster
+                    TypedMessage lostMsg = AuctionMessage.createAuctionLost(best.getAuction());
+                    sendDirect(lostMsg, state.assignee.get());
+                }
+
+                // Inform the new winner of their victory
+                UAV winner = best.getBidder();
+                state.assignee = Optional.of(winner);
+                TypedMessage wonMsg = BidMessage.createAuctionWon(best);
+                sendDirect(wonMsg, winner);
+            }
+        }
+
+        this.receivedBids.clear();
+    }
+
     private void onNewAuction(Auction auction) {
-        System.out.println(String.format("New auction at %s for %s", auction.getModerator(), auction.getParcel()));
+        System.out.println(String.format("Starting auction for %s at %s", auction.getParcel(), auction.getModerator()));
         this.broadcast(AuctionMessage.createNewAuction(auction));
     }
 
@@ -104,7 +139,9 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
      */
     private void onNewBid(Bid bid) {
         UAV bidder = bid.getBidder();
-        AuctionState state = this.auctions.get(bid.getParcel());
+        DroneParcel parcel = bid.getParcel();
+        AuctionState state = this.auctions.get(parcel);
+
         if (state.assigneeEquals(bidder)) {
             System.err.println("New bid arrived from the winner of the auction - dropping previous assignment " + bid.getParcel());
             state.assignee = Optional.absent();
@@ -113,18 +150,8 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         // Remove all previous bids
         state.removeBidsFrom(bidder);
 
-        // Add the new bid, and check if it wins the auction
-        if (state.add(bid)) {
-            // If there was a previous winner, inform them of their loss
-            if (state.assignee.isPresent()) {
-                TypedMessage lostMsg = AuctionMessage.createAuctionLost(bid.getAuction());
-                sendDirect(lostMsg, state.assignee.get());
-            }
-            // Register the new winner and inform them
-            state.assignee = Optional.of(bidder);
-            TypedMessage wonMsg = BidMessage.createAuctionWon(bid);
-            sendDirect(wonMsg, bidder);
-        }
+        receivedBids.putIfAbsent(parcel, new ArrayList<>());
+        receivedBids.get(parcel).add(bid);
     }
 
     /**
@@ -138,7 +165,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         AuctionState state = this.auctions.get(parcel);
 
         if (!state.assigneeEquals(drone)) {
-            System.err.println(String.format("Drone %s is lying to depot!", drone));
+            System.err.println(String.format("Drone %s is refusing parcel %s, which it did not win", drone, parcel));
             return; // Auction was not won by this drone, ignore
         }
 
@@ -153,10 +180,12 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             UAV winner = best.get().getBidder();
             state.assignee = Optional.of(winner);
             this.sendDirect(BidMessage.createAuctionWon(best.get()), winner);
-        } else {
-            // No more bids available: restart auction
-            this.onNewAuction(new Auction(bid.getParcel(), this));
         }
+//        else {
+//            // No more bids available: restart auction
+//            System.out.println("Last bid refused, restarting auction...");
+//            this.onNewAuction(new Auction(bid.getParcel(), this));
+//        }
     }
 
     /**
@@ -183,7 +212,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     private static class AuctionState {
         final PriorityQueue<Bid> bids = new PriorityQueue<>(Comparator.comparingDouble(Bid::getDeliveryTime));
         Optional<UAV> assignee = Optional.absent();
-
         int unactive = 0;
 
         boolean assigneeEquals(UAV drone) {
@@ -194,18 +222,12 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             bids.removeIf(bid -> bid.getBidder().equals(drone));
         }
 
-        /**
-         * @param bid
-         * @return whether this bid is the new optimal bid
-         */
-        boolean add(Bid bid) {
-            bids.add(bid);
-            this.unactive = 0;
-            return bids.peek().equals(bid);
+        void addAll(Collection<Bid> coll) {
+            this.bids.addAll(coll);
         }
 
         boolean forgotten() {
-            return this.unactive > 10;
+            return !this.assignee.isPresent() && this.unactive > 20;
         }
 
         void timestep(){
@@ -223,6 +245,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     }
     
     public void sendDirect(TypedMessage content, CommUser recipient) {
+        // System.out.println(String.format("Sending message %s to %s", content, recipient));
         this.getCommDevice().send(content, recipient);
     }
 
@@ -247,7 +270,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     @Override
     public void setCommDevice(CommDeviceBuilder commDeviceBuilder) {
         commDeviceBuilder.setMaxRange(DistributionCenter.RANGE);
-        this.commDevice = Optional.of(commDeviceBuilder.setReliability(this.RELIABILITY).build());
+        this.commDevice = Optional.of(commDeviceBuilder.setReliability(DistributionCenter.RELIABILITY).build());
     }
 
     private CommDevice getCommDevice() {
@@ -255,59 +278,6 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
             throw new IllegalStateException("CommDevice not initialized in DistributionCenter");
         return this.commDevice.get();
     }
-
-//    private List<Auction> getUnactiveAuctions() {
-//        return this.auctions.stream().filter(auction -> !auction.hasBids()).collect(Collectors.toList());
-//    }
-
-//    private void checkMessages() {
-//        List<TypedMessage> messages = this.readMessages();
-//        List<Auction> auctions = new ArrayList<>();
-//        for (int i = 0; i < messages.size(); i++) {
-//            TypedMessage content = messages.get(i);
-//            if (content.getType().equals(MessageType.NEW_BID)) {
-//                BidMessage message = (BidMessage) content;
-//                auctions.add(message.getAuction());
-//            }
-//            if (content.getType().equals(MessageType.PARCEL_ACCEPTANCE)) {
-//                if (((AcceptanceMessage) content).isAccepted()) {
-//                    Auction auction = ((AcceptanceMessage) content).getAuction();
-//                    auction.close();
-//                }
-//                else {
-//                    Auction auction = ((AcceptanceMessage) content).getAuction();
-//                    Bid refusedBid = ((AcceptanceMessage) content).getBid();
-//                    System.out.println(refusedBid);
-//                    auction.deleteBid(refusedBid);
-//                }
-//            }
-//        }
-//        this.moderateAuction(auctions);
-//    }
-
-//    private void moderateAuction(List<Auction> auctions) {
-//        List<Auction> handledAuctions = new ArrayList<>();
-//        for (Auction auction : auctions) {
-//            if (!handledAuctions.contains(auction)) {
-//                this.getCnet().moderateAuction(auction, this);
-//                handledAuctions.add(auction);
-//            }
-//        }
-//    }
-
-//    private List<TypedMessage> readMessages() {
-//        CommDevice device = this.commDevice.get();
-//        List<TypedMessage> contents = new ArrayList<>();
-//        if (device.getUnreadCount() != 0) {
-//            ImmutableList<Message> messages = device.getUnreadMessages();
-//            contents = this.getCnet().getMessageContent(messages);
-//        }
-//        return contents;
-//    }
-
-//    public ContractNet getCnet() {
-//        return this.cnet;
-//    }
 
     public static List<Point> getPathToClosest(RoadModel rm, Point from) {
         return rm.getObjectsOfType(DistributionCenter.class).stream()
@@ -324,11 +294,10 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
 
     @Override
     public String toString() {
+        // FIXME overlapping RoadUser tags
         Point pos = this.getPosition().get();
-        return String.format("<Depot at (%.2f,%.2f)>", pos.x, pos.y);
-        //return ""; // FIXME overlapping RoadUser tags
+        return String.format("<Depot %1d>", this.id); // at (%.2f,%.2f) [%d active auctions]>", this.id, pos.x, pos.y, this.auctions.size());
     }
-
 
     private void activateAuctions() {
         Set<DroneParcel> parcels = this.auctions.keySet();
@@ -353,7 +322,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
     @Override
     public void afterTick(TimeLapse timeLapse) {
         if (timeLapse.getStartTime() % 1000000 == 0) {
-            this.auctions.values().forEach(state -> state.timestep());
+            this.auctions.values().forEach(AuctionState::timestep);
         }
     }
 

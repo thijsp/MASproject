@@ -49,4 +49,8 @@ public final class Auction {
         Auction other = (Auction) obj;
         return this.parcel.equals(other.getParcel()) && this.moderator.equals(other.getModerator());
     }
+
+    public String toString() {
+        return String.format("<Auction for %s at %s>", this.parcel, this.moderator);
+    }
 }

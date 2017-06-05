@@ -34,10 +34,11 @@ public final class BidMessage extends TypedMessage {
     public final Bid getBid() {
         return this.bid;
     }
-    public final Auction getAuction() {
-        return this.bid.getAuction();
-    }
 
+    @Override
+    String getDescription() {
+        return "" + this.bid;
+    }
 //    public double getDeliveryTime() {
 //        return this.bid.getDeliveryTime();
 //    }

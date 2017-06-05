@@ -107,7 +107,6 @@ public class NoFlyZoneRoadModel extends PlaneRoadModel {
 
         List<Point> result = Graphs.shortestPathEuclideanDistance(g, from, to);
         memo.put(conn, result);
-        //System.out.println("Memo size: " + memo.size());
         return result;
     }
 

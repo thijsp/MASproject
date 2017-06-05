@@ -35,4 +35,9 @@ public final class AuctionMessage extends TypedMessage {
     public final Auction getAuction() {
         return this.auction;
     }
+
+    @Override
+    String getDescription() {
+        return "" + this.auction;
+    }
 }

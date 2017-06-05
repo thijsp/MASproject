@@ -2,13 +2,14 @@ package agents.accessories;
 
 import agents.UAV;
 import agents.constraints.BatteryConstraint;
+import com.github.rinde.rinsim.core.model.time.TimeLapse;
 
 /**
  * Created by thijspeirelinck on 14/05/2017.
  */
 public class Battery extends Accessory {
 
-    private final double capacity; // in Ws
+    public final double capacity; // in Ws
     private double charge; // in Ws
     private BatteryConstraint constraint;
     private final double chargingPower; // in Ws
@@ -25,9 +26,6 @@ public class Battery extends Accessory {
         return capacity;
     }
 
-    public double getCharge() {
-        return charge;
-    }
 
     private void setCharge(double newCharge) {
         this.charge = newCharge;
@@ -38,7 +36,7 @@ public class Battery extends Accessory {
     }
 
     public double getBatteryLevel() {
-        return this.getCharge()/this.getCapacity();
+        return this.charge / this.capacity;
     }
 
     public void discharge(double consumedEnergy) {
@@ -53,7 +51,8 @@ public class Battery extends Accessory {
         return this.getConstraint().isAllowedCharge(newCharge);
     }
 
-    public void charge() {
+    public void chargeFor(TimeLapse time) {
+        // TODO use available time
         this.charge = Math.min(this.capacity, this.charge + this.chargingPower);
     }
 

@@ -14,13 +14,15 @@ import java.util.Objects;
  */
 public final class DroneParcel extends Parcel {
 
+    private final int id;
     private final DistributionCenter depot;
     // private Auction auction;
     private final List<Point> shortestPath;
     private final List<Point> shortestEscape;
 
-    public DroneParcel(Point destination, DistributionCenter depot, List<Point> shortestPath, List<Point> shortestEscape) {
+    public DroneParcel(Point destination, DistributionCenter depot, List<Point> shortestPath, List<Point> shortestEscape, int id) {
         super(Parcel.builder(depot.getPosition().get(), destination).buildDTO());
+        this.id = id;
         this.depot = depot;
         this.shortestPath = shortestPath;
         this.shortestEscape = shortestEscape;
@@ -52,7 +54,7 @@ public final class DroneParcel extends Parcel {
 
     @Override
     public int hashCode() {
-        return this.getDeliveryLocation().hashCode();
+        return 0xcafebabe ^ this.getDeliveryLocation().hashCode();
     }
 
     @Override
@@ -60,5 +62,10 @@ public final class DroneParcel extends Parcel {
         if (other == null || !(other instanceof DroneParcel))
             return false;
         return this.getDeliveryLocation().equals(((DroneParcel) other).getDeliveryLocation());
+    }
+
+    @Override
+    public String toString() {
+        return String.format("<Parcel %d>", this.id);
     }
 }

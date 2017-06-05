@@ -12,13 +12,14 @@ import com.github.rinde.rinsim.geom.Point;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import java.util.List;
+import java.util.Scanner;
 
 /**
  * Created by thijspeirelinck on 12/05/2017.
  */
 public class ParcelGenerator implements TickListener {
 
-    private static final double GEN_PROBABILITY = 0.02;
+    private static final double GEN_PROBABILITY = 0.002;
     private final Simulator sim;
     private RandomGenerator rnd;
     private int parcels_generated = 0;
@@ -58,7 +59,7 @@ public class ParcelGenerator implements TickListener {
             }
             shortestEscape = DistributionCenter.getPathToClosest(rm, destination);
             // System.out.println(String.format("New parcel added with destination (%.2f,%.2f)", destination.x, destination.y));
-            DroneParcel parcel = new DroneParcel(destination, depot, shortestPath, shortestEscape);
+            DroneParcel parcel = new DroneParcel(destination, depot, shortestPath, shortestEscape, parcels_generated);
             this.sim.register(parcel);
             depot.addParcel(parcel);
             parcels_generated++;
@@ -66,5 +67,6 @@ public class ParcelGenerator implements TickListener {
     }
 
     @Override
-    public void afterTick(TimeLapse timeLapse) {}
+    public void afterTick(TimeLapse timeLapse) {
+    }
 }

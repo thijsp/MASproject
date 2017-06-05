@@ -10,14 +10,14 @@ import communication.BidMessage;
 import java.util.*;
 
 /**
- * Created by thijspeirelinck on 2/06/17.
+ * Drone with a static contract net implementation
  */
-public class statUAV extends UAV {
+public class StaticUAV extends UAV {
 
-    protected HashMap<DroneParcel, AuctionState> parcels = new HashMap<>();
+    private HashMap<DroneParcel, AuctionState> parcels = new HashMap<>();
 
-    public statUAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
-        super(startPos, speed, batteryCapacity, motorPower, maxSpeed);
+    public StaticUAV(int id, Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
+        super(id, startPos, speed, batteryCapacity, motorPower, maxSpeed);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class statUAV extends UAV {
     private void refuseParcels() {
         // in this rare case, also static UAVs can refuse parcels
         Set<DroneParcel> refusingParcels = this.parcels.keySet();
-        refusingParcels.stream()
+        refusingParcels
                 .forEach(parcel ->
                         this.sendDirect(BidMessage.
                                 createRefusal(this.parcels.get(parcel).myBid().get()), parcel.getDepot()));
@@ -97,7 +97,7 @@ public class statUAV extends UAV {
         DistributionCenter depot = auction.getModerator();
         DroneParcel parcel = auction.getParcel();
         if(this.wantsToBid(parcel)) {
-            double delTime = this.calculateDeliveryTime(parcel.getDeliveryLocation());
+            double delTime = this.calculateDeliveryTime(parcel);
             Bid bid = new Bid(this, delTime, auction);
             BidMessage answer = BidMessage.createNewBid(bid);
             this.sendDirect(answer, depot);
@@ -161,7 +161,12 @@ public class statUAV extends UAV {
         this.takeNextParcel();
     }
 
-    public Optional<DroneParcel> getNextParcel() {
+    @Override
+    protected void onFullyCharged() {
+        this.state = DroneState.PICKING;
+    }
+
+    private Optional<DroneParcel> getNextParcel() {
         Set<DroneParcel> myParcels = this.parcels.keySet();
         Iterator<DroneParcel> it = myParcels.iterator();
         DroneParcel nextParcel = it.next();
@@ -182,7 +187,7 @@ public class statUAV extends UAV {
         }
     }
 
-    public void takeNextParcel() {
+    private void takeNextParcel() {
         this.state = DroneState.PICKING;
         if (!this.parcels.keySet().isEmpty()) {
             Optional<DroneParcel> nextParcel = this.getNextParcel();
@@ -197,10 +202,10 @@ public class statUAV extends UAV {
     }
 
     private static class AuctionState {
-        Optional<DistributionCenter> moderator = Optional.absent();
+        // Optional<DistributionCenter> moderator = Optional.absent();
         Optional<Bid> myBid = Optional.absent();
 
-        boolean hasModerator() { return this.moderator.isPresent(); }
+        // boolean hasModerator() { return this.moderator.isPresent(); }
 
         Optional<Bid> myBid() {return this.myBid; }
 
@@ -209,8 +214,8 @@ public class statUAV extends UAV {
 
     @Override
     public String toString() {
-        Point pos = this.getPosition().get();
-        //return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getBatteryLevel());
+        // Point pos = this.getPosition().get();
+        // return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getBatteryLevel());
         return String.valueOf(this.hashCode());
     }
 }
