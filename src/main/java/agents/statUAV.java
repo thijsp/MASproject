@@ -15,9 +15,14 @@ import java.util.*;
 public class statUAV extends UAV {
 
     protected HashMap<DroneParcel, AuctionState> parcels = new HashMap<>();
+    private int maxParcels = 5;
 
     public statUAV(Point startPos, double speed, double batteryCapacity, double motorPower, double maxSpeed) {
         super(startPos, speed, batteryCapacity, motorPower, maxSpeed);
+    }
+
+    public void setMaxAssignments(int maxAssignments) {
+        this.maxParcels = maxAssignments;
     }
 
     @Override
@@ -48,7 +53,7 @@ public class statUAV extends UAV {
 
     private void decideAction(TimeLapse time) {
         if (this.getPosition().get().equals(this.getNearestDepot())) {
-            // if the UAV is in a depot but it can still not deliver it's closest (and thus any) parcele refuse all
+            // if the UAV is in a depot but it can still not deliver it's closest (and thus any) parcel refuse all
             this.refuseParcels();
         }
         else {
@@ -80,13 +85,13 @@ public class statUAV extends UAV {
                 break;
             case PICKING:
                 // bid on auctions if not yet too many assignments
-                if (this.parcels.size() < 5) {
+                if (this.parcels.size() < maxParcels) {
                     bidOnAuction(auction);
                 }
                 break;
             case CHARGING:
                 // bid on auctions if not yet too many assignments and enough charged
-                if (this.parcels.size() < 5 && this.getMotor().getPowerSource().getBatteryLevel() > 0.8) {
+                if (this.parcels.size() < maxParcels && this.getMotor().getPowerSource().getBatteryLevel() > 0.8) {
                     bidOnAuction(auction);
                 }
                 break;
@@ -111,7 +116,7 @@ public class statUAV extends UAV {
         state.addBid(bid);
         this.parcels.put(auction.getParcel(), state);
         if (!this.getParcel().isPresent()) {
-            this.assignParcel(bid.getParcel());
+            this.takeNextParcel();
         }
     }
 
@@ -146,8 +151,10 @@ public class statUAV extends UAV {
                 Optional<DroneParcel> currentParcel = this.getParcel();
                 if (currentParcel.isPresent()) {
                     if (currentParcel.get().equals(parcel)) {
-                        this.removeParcel();
-                        this.takeNextParcel();
+                        //this.removeParcel();
+                        //this.takeNextParcel();
+                        System.out.println(this.toString() + " " + parcel);
+                        throw new IllegalArgumentException();
                     }
                 }
                 break;
@@ -160,6 +167,11 @@ public class statUAV extends UAV {
         //this.parcels.remove(parcel);
         this.takeNextParcel();
     }
+
+//    @Override
+//    protected void onFullyCharged() {
+//        this.state = DroneState.PICKING;
+//    }
 
     public Optional<DroneParcel> getNextParcel() {
         Set<DroneParcel> myParcels = this.parcels.keySet();
@@ -183,11 +195,12 @@ public class statUAV extends UAV {
     }
 
     public void takeNextParcel() {
-        this.state = DroneState.PICKING;
+        //this.state = DroneState.PICKING;
         if (!this.parcels.keySet().isEmpty()) {
             Optional<DroneParcel> nextParcel = this.getNextParcel();
             if(nextParcel.isPresent()) {
                 this.assignParcel(nextParcel.get());
+                //this.closestDepot = Optional.absent();
                 this.state = DroneState.PICKING;
             }
             else {

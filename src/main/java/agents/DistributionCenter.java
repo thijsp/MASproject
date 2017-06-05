@@ -52,6 +52,10 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         this.activateAuctions();
     }
 
+    public int getRemainingParcels() {
+        return this.auctions.size();
+    }
+
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
 
     public void addParcel(DroneParcel parcel) {
@@ -205,7 +209,7 @@ public class DistributionCenter extends Depot implements CommUser, TickListener 
         }
 
         boolean forgotten() {
-            return this.unactive > 10;
+            return !this.assignee.isPresent() && this.unactive > 10;
         }
 
         void timestep(){

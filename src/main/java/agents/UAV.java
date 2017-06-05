@@ -405,6 +405,7 @@ public abstract class UAV extends Vehicle implements CommUser {
     protected Optional<DroneParcel> getParcel() {return this.parcel; }
 
     protected void assignParcel(DroneParcel parcel) {
+        this.closestDepot = Optional.absent();
         this.parcel = Optional.of(parcel);
     }
 
