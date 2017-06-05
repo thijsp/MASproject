@@ -55,6 +55,10 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
         this.activateAuctions();
     }
 
+    public int getRemainingParcels() {
+        return this.auctions.size();
+    }
+
     public void initRoadPDP(RoadModel pRoadModel, PDPModel pPdpModel) { }
 
     public void addParcel(DroneParcel parcel) {
@@ -227,7 +231,7 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
         }
 
         boolean forgotten() {
-            return !this.assignee.isPresent() && this.unactive > 20;
+            return !this.assignee.isPresent() && this.unactive > 10;
         }
 
         void timestep(){
