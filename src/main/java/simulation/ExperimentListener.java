@@ -16,17 +16,23 @@ import java.util.Set;
 /**
  * Created by thijspeirelinck on 5/06/17.
  */
-public class ExperimentListner implements TickListener {
+public class ExperimentListener implements TickListener {
 
     private Simulator sim;
     private ArrayList<Integer> deliveredParcels = new ArrayList<>();
     private ArrayList<Integer> remainingParcels = new ArrayList<>();
     private ParcelGenerator parcelGen;
+    private boolean done = false;
 
-    ExperimentListner(Simulator sim, ParcelGenerator parcelGen) {
+    ExperimentListener(Simulator sim, ParcelGenerator parcelGen) {
         this.parcelGen = parcelGen;
         this.sim = sim;
     }
+
+    public boolean isDone() {
+        return this.done;
+    }
+
     @Override
     public void tick(TimeLapse timeLapse) {
     }
@@ -39,18 +45,17 @@ public class ExperimentListner implements TickListener {
         Collection<Parcel> deliveredParcels = pm.getParcels(delivered);
         this.deliveredParcels.add(deliveredParcels.size());
         Set<DistributionCenter> depots = rm.getObjectsOfType(DistributionCenter.class);
-        int remainingParcel = 0;
-        for (DistributionCenter depot : depots) {
-            remainingParcel += depot.getRemainingParcels();
-        }
-        remainingParcels.add(remainingParcel);
-        if (remainingParcel == 0 && parcelGen.getParcels_generated() > 0 ) {
-            try {
-                sim.stop();
-            }
-            catch (Exception e) {
-                    System.err.println("caught error:" + e.getMessage());
-            }
+        int remainingCount = depots.stream().mapToInt(DistributionCenter::getRemainingParcels).sum();
+        remainingParcels.add(remainingCount);
+        if (remainingCount == 0 && parcelGen.getParcels_generated() == parcelGen.getMaxParcels()) {
+            sim.stop();
+            this.done = true;
+//            try {
+//                sim.stop();
+//            }
+//            catch (Exception e) {
+//                    System.err.println("caught error:" + e.getMessage());
+//            }
         }
     }
 

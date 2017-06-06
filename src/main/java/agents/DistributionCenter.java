@@ -32,7 +32,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 public final class DistributionCenter extends Depot implements CommUser, TickListener {
 
     private final int id;
-    private List<DroneParcel> availableParcels = new ArrayList<>();
+//    private List<DroneParcel> availableParcels = new ArrayList<>();
     private Optional<CommDevice> commDevice = Optional.absent();
     private static final double RANGE = 2000.0D;
     private static final double RELIABILITY = 1.0D;
@@ -64,7 +64,7 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     public void addParcel(DroneParcel parcel) {
         checkArgument(!this.auctions.containsKey(parcel), "Auction for parcel %s already exists in this DistributionCenter", parcel);
 
-        this.availableParcels.add(parcel); // TODO remove
+//        this.availableParcels.add(parcel); // TODO remove
 
         this.auctions.put(parcel, new AuctionState());
         this.onNewAuction(new Auction(parcel, this));
@@ -254,19 +254,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
         this.getCommDevice().send(content, recipient);
     }
 
-    public DroneParcel getParcel(DroneParcel requestedParcel) {
-        // TODO removeBidsFrom method
-        for (DroneParcel parcel : this.availableParcels) {
-            if (parcel.equals(requestedParcel)) {
-                availableParcels.remove(parcel);
-                this.auctions.remove(parcel);
-                return parcel;
-            }
-        }
-        System.out.println("illegal parcel: " + requestedParcel.toString());
-        throw new IllegalArgumentException("no such parcel available");
-    }
-
     @Override
     public Optional<Point> getPosition() {
         return this.getRoadModel().containsObject(this)? Optional.of(this.getRoadModel().getPosition(this)) : Optional.<Point>absent();
@@ -300,8 +287,8 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     @Override
     public String toString() {
         // FIXME overlapping RoadUser tags
-        Point pos = this.getPosition().get();
-        return String.format("<Depot %1d>", this.id); // at (%.2f,%.2f) [%d active auctions]>", this.id, pos.x, pos.y, this.auctions.size());
+        // Point pos = this.getPosition().get();
+        return String.format("<Depot %1d [%d]>", this.id, this.auctions.size()); // at (%.2f,%.2f) [%d active auctions]>", this.id, pos.x, pos.y, this.auctions.size());
     }
 
     private void activateAuctions() {
@@ -328,6 +315,7 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     public void afterTick(TimeLapse timeLapse) {
         if (timeLapse.getStartTime() % 1000000 == 0) {
             this.auctions.values().forEach(AuctionState::timestep);
+            System.out.println(this);
         }
     }
 

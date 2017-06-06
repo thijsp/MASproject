@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public final class SimGenerator {
     static final double MIN_SPEED = 10.0D;
     static final double MAX_SPEED = 30.0D;
-    static final double BAT_CAPACITY = 3600 * 300.0D;
+    static final double BAT_CAPACITY = 3600 * 500.0D;
     static final double MOT_POWER = 130.0;
 
     static final Point MIN_POINT = new Point(0.0D, 0.0D);
@@ -41,7 +41,7 @@ public final class SimGenerator {
 
     static final int DEPOTS = 3;
     static final int UAVS = 4;
-    static final int MAX_PARCELS = 400;
+    static final int MAX_PARCELS = 200;
 
     static final boolean TESTING = true;
     static final boolean RANDOM_DEPOTS = true;
@@ -100,7 +100,7 @@ public final class SimGenerator {
         for(int i = 1; i <= UAVS; ++i) {
             double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
             Point startPos = rm.getRandomPosition(rnd);
-            UAV uav = new StaticUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
+            UAV uav = new DynamicUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
 
@@ -121,6 +121,3 @@ public final class SimGenerator {
     }
 
 }
-
-
-

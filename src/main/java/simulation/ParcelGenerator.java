@@ -73,4 +73,8 @@ public class ParcelGenerator implements TickListener {
     public int getParcels_generated() {
         return this.parcels_generated;
     }
+
+    public int getMaxParcels() {
+        return this.maxParcels;
+    }
 }

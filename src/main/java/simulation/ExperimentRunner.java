@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public class ExperimentRunner {
     static final double MIN_SPEED = 10.0D;
     static final double MAX_SPEED = 30.0D;
-    static final double BAT_CAPACITY = 3600 * 300.0D;
+    static final double BAT_CAPACITY = 3600 * 500.0D;
     static final double MOT_POWER = 130.0;
 
     static final Point MIN_POINT = new Point(0.0D, 0.0D);
@@ -38,7 +38,7 @@ public class ExperimentRunner {
     static final int TEST_SPEEDUP = 500;
     static final long TEST_STOP_TIME = 6000000000L;
 
-    static final int MAX_PARCELS = 400;
+    static final int MAX_PARCELS = 200;
 
     static final boolean TESTING = true;
     static final boolean randomDepots = true;
@@ -122,17 +122,26 @@ public class ExperimentRunner {
                 double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
                 Point startPos = rm.getRandomPosition(rnd);
                 UAV uav = new StaticUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
-                ((StaticUAV)uav).setMaxAssignments(parcelSize.get(exp));
+                if (uav instanceof StaticUAV)
+                    ((StaticUAV)uav).setMaxAssignments(parcelSize.get(exp));
                 sim.register(uav);
             }
 
             // create a ticklistner that generates parcels, registers them and add them to a depot
             ParcelGenerator parcelgen = new ParcelGenerator(depots, sim, TEST_STOP_TIME, MAX_PARCELS);
-            ExperimentListner result = new ExperimentListner(sim, parcelgen);
+            ExperimentListener result = new ExperimentListener(sim, parcelgen);
             sim.addTickListener(parcelgen);
             sim.addTickListener(result);
 
             sim.start();
+
+            while (!result.isDone()) {
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException ignored) {
+                }
+            }
+            System.out.println("Simulator is done");
 
             // report the results of this run
             res.report(result.getDeliveredParcels());
