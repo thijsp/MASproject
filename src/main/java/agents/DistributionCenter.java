@@ -104,9 +104,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
             AuctionState state = this.auctions.get(parcel);
             List<Bid> newBids = this.receivedBids.get(parcel);
 
-            if (state == null)
-                System.out.println();
-
             state.addAll(newBids);
 
             Bid best = state.bestBid().get();
@@ -130,7 +127,7 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     }
 
     private void onNewAuction(Auction auction) {
-        System.out.println(String.format("Starting auction for %s at %s", auction.getParcel(), auction.getModerator()));
+//        System.out.println(String.format("Starting auction for %s at %s", auction.getParcel(), auction.getModerator()));
         this.broadcast(AuctionMessage.createNewAuction(auction));
     }
 
@@ -203,7 +200,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
         DroneParcel parcel = bid.getParcel();
         AuctionState state = this.auctions.get(parcel);
         if (!state.assigneeEquals(bid.getBidder())) {
-            System.out.println(state.assignee);
             throw new IllegalStateException("Drone " + bid.getBidder() + " is lying to depot, he didn't win this auction, parcel: " + parcel);
         }
         final TypedMessage doneMsg = AuctionMessage.createAuctionDone(auction);
@@ -315,7 +311,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     public void afterTick(TimeLapse timeLapse) {
         if (timeLapse.getStartTime() % 1000000 == 0) {
             this.auctions.values().forEach(AuctionState::timestep);
-            System.out.println(this);
         }
     }
 
