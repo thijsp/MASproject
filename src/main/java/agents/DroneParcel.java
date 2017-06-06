@@ -19,6 +19,9 @@ public final class DroneParcel extends Parcel {
     // private Auction auction;
     private final List<Point> shortestPath;
     private final List<Point> shortestEscape;
+    private long pickUpTime;
+    private long deliveredTime;
+    private long creationTime;
 
     public DroneParcel(Point destination, DistributionCenter depot, List<Point> shortestPath, List<Point> shortestEscape, int id) {
         super(Parcel.builder(depot.getPosition().get(), destination).buildDTO());
@@ -68,4 +71,25 @@ public final class DroneParcel extends Parcel {
     public String toString() {
         return String.format("<Parcel %d>", this.id);
     }
+
+    public void setPickupTime(long time) {
+        this.pickUpTime = time;
+    }
+
+    public void setDeliveredTime(long time) {
+        this.deliveredTime = time;
+    }
+
+    public void setCreationTime(long time) { this.creationTime = time; }
+
+    public long getDeliveryTime() {
+        assert this.deliveredTime != 0 && this.pickUpTime != 0;
+        return this.deliveredTime - this.pickUpTime;
+    }
+
+    public long getExistanceTime() {
+        assert this.deliveredTime != 0;
+        return this.deliveredTime - this.creationTime;
+    }
+
 }

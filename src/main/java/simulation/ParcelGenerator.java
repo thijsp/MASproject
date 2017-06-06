@@ -61,12 +61,16 @@ public class ParcelGenerator implements TickListener {
             // System.out.println(String.format("New parcel added with destination (%.2f,%.2f)", destination.x, destination.y));
             DroneParcel parcel = new DroneParcel(destination, depot, shortestPath, shortestEscape, parcels_generated);
             this.sim.register(parcel);
+            parcel.setCreationTime(time.getTime());
             depot.addParcel(parcel);
             parcels_generated++;
         }
     }
 
     @Override
-    public void afterTick(TimeLapse timeLapse) {
+    public void afterTick(TimeLapse timeLapse) {}
+
+    public int getParcels_generated() {
+        return this.parcels_generated;
     }
 }

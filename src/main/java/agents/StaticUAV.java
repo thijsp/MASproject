@@ -219,11 +219,4 @@ public class StaticUAV extends UAV {
 
         void addBid(Bid bid) {this.myBid = Optional.of(bid);}
     }
-
-    @Override
-    public String toString() {
-        // Point pos = this.getPosition().get();
-        // return String.format("<UAV at (%.2f,%.2f) [Bat %.0f%%]>", pos.x, pos.y, 100*this.motor.getPowerSource().getBatteryLevel());
-        return String.valueOf(this.hashCode());
-    }
 }

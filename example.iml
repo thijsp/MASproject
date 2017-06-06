@@ -9,6 +9,7 @@
     </content>
     <orderEntry type="jdk" jdkName="1.8" jdkType="JavaSDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Maven: net.sf.opencsv:opencsv:2.0" level="project" />
     <orderEntry type="library" name="Maven: com.github.rinde:rinsim-example:4.4.2" level="project" />
     <orderEntry type="library" name="Maven: com.github.rinde:rinsim-core:4.4.2" level="project" />
     <orderEntry type="library" name="Maven: net.openhft:affinity:3.0.1" level="project" />
@@ -42,5 +43,6 @@
     <orderEntry type="library" name="Maven: com.github.rinde:rinsim-pdptw:4.4.2" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:19.0" level="project" />
     <orderEntry type="library" name="Maven: com.github.rinde:rinsim-test-util:test-jar:tests:4.4.2" level="project" />
+    <orderEntry type="library" name="Maven: net.sf.opencsv:opencsv:2.0" level="project" />
   </component>
 </module>

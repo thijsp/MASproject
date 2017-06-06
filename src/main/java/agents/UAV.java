@@ -60,7 +60,6 @@ public abstract class UAV extends Vehicle implements CommUser {
      * @param time The time lapse available this tick
      */
     protected void tickImpl(TimeLapse time) {
-        // System.out.println("TimeLapse: " + time);
         if (!this.commDevice.isPresent())
             throw new IllegalStateException("No commdevice in UAV");
 
@@ -92,7 +91,6 @@ public abstract class UAV extends Vehicle implements CommUser {
     }
 
     private void onMessage(TypedMessage msg) {
-        // System.out.println(String.format("%s received message\t%s", this, msg));
         switch (msg.type) {
             case NEW_AUCTION:
                 this.onNewAuction(((AuctionMessage) msg).getAuction());
@@ -130,6 +128,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         // If the UAV has arrived at its destination: finalize delivery
         if (this.getRoadModel().getPosition(this).equals(destination)) {
             this.getPDPModel().deliver(this, parcel, time);
+            parcel.setDeliveredTime(time.getTime());
             this.parcel = Optional.absent();
             this.state = DroneState.PICKING;
             this.closestDepot = Optional.absent();  // force re-initialization of closest depot calculation
@@ -149,6 +148,7 @@ public abstract class UAV extends Vehicle implements CommUser {
             Bid dummyBid = new Bid(this, 0.0, new Auction(currentParcel, parcelDepot));
             this.sendDirect(BidMessage.createBidRetrieval(dummyBid), parcelDepot);
             this.getPDPModel().pickup(this, currentParcel, time);
+            currentParcel.setPickupTime(time.getTime());
             assert rm.containsObject(currentParcel);
             this.state = DroneState.DELIVERING;
             this.closestDepot = Optional.absent();
@@ -239,6 +239,10 @@ public abstract class UAV extends Vehicle implements CommUser {
         commDeviceBuilder.setMaxRange(UAV.RANGE);
         this.commDevice = Optional.of(commDeviceBuilder.setReliability(UAV.RELIABILITY).build());
     }
+
+//    public DynContractNet getCnet() {
+//        return this.cnet;
+//    }
 
     protected Motor getMotor() { return this.motor; }
 

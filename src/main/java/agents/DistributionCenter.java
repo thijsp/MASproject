@@ -224,6 +224,7 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
 
         void removeBidsFrom(UAV drone) {
             bids.removeIf(bid -> bid.getBidder().equals(drone));
+            this.unactive = 0;
         }
 
         void addAll(Collection<Bid> coll) {

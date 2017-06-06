@@ -6,6 +6,7 @@ package simulation;
 
 import agents.DistributionCenter;
 import agents.DynamicUAV;
+import agents.StaticUAV;
 import agents.UAV;
 import com.github.rinde.rinsim.core.Simulator;
 import com.github.rinde.rinsim.core.model.comm.CommModel;
@@ -99,7 +100,7 @@ public final class SimGenerator {
         for(int i = 1; i <= UAVS; ++i) {
             double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
             Point startPos = rm.getRandomPosition(rnd);
-            UAV uav = new DynamicUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
+            UAV uav = new StaticUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
             sim.register(uav);
         }
 
