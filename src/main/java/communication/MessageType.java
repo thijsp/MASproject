@@ -43,5 +43,4 @@ public enum MessageType {
      */
     PARCEL_REFUSED,
 
-    // AUCTION_RESULT,
 }

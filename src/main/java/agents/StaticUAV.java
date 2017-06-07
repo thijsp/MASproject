@@ -153,7 +153,6 @@ public class StaticUAV extends UAV {
                     if (currentParcel.get().equals(parcel)) {
                         //this.removeParcel();
                         //this.takeNextParcel();
-                        System.out.println(this.toString() + " " + parcel);
                         throw new IllegalArgumentException();
                     }
                 }

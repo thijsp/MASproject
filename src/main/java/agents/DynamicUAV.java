@@ -120,22 +120,17 @@ public final class DynamicUAV extends UAV {
             case OUT_OF_SERVICE:
             case CHARGING:
                 // ignore
-                // System.err.println(String.format("Drone %s lost auction in state %s... ?", this, this.state));
                 break;
             case PICKING:
                 if (this.parcel.isPresent() && auction.getParcel().equals(this.parcel.get())) {
-                    // System.out.println(String.format("Drone %s no longer claims %s", this, auction));
                     // We were denied our favorite parcel, go back to roaming
                     this.parcel = Optional.absent();
                 }
-                // else System.err.println(String.format("Drone %s lost auction for %s that it did not yet win... ?", this, auction.getParcel()));
         }
     }
 
     @Override
     protected void onAuctionDone(Auction auction) {
-//        if (this.parcel.get().equals(auction.getParcel()))
-//            throw new IllegalStateException(String.format("Another drone claimed parcel %s, which was assigned to %s", this.parcel.get(), this));
         // Dynamic drone does not keep track of auction participations.
         // Nothing to do here.
     }
@@ -144,7 +139,6 @@ public final class DynamicUAV extends UAV {
     protected void onPackageDelivered(DroneParcel parcel) {
         // We've moved to the PICKING state at this point
         // Nothing left to do here.
-        System.out.println(String.format("%s successfully delivered %s.", this, parcel));
     }
 
     @Override

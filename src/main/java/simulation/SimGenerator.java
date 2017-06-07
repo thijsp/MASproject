@@ -43,7 +43,7 @@ public final class SimGenerator {
     static final int UAVS = 4;
     static final int MAX_PARCELS = 200;
 
-    static final boolean TESTING = true;
+    static final boolean TESTING = false;
     static final boolean RANDOM_DEPOTS = true;
 
     private SimGenerator() {
@@ -101,7 +101,7 @@ public final class SimGenerator {
             double speed = getRandomSpeed(rnd, MAX_SPEED, MIN_SPEED);
             Point startPos = rm.getRandomPosition(rnd);
             UAV uav = new DynamicUAV(i, startPos, speed, BAT_CAPACITY, MOT_POWER, MAX_SPEED);
-            sim.register(uav);
+            //sim.register(uav);
         }
 
         // create a ticklistner that generates parcels, registers them and add them to a depot

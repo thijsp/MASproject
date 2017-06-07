@@ -35,10 +35,6 @@ public final class Bid {
         return this.auction.getParcel();
     }
 
-//    public void addAuction(Auction auction) {
-//        this.auction = auction;
-//    }
-
     @Override
     public String toString() {
         return String.format("<Bid by %s for %s [time %.03f]>", this.bidder, this.auction, this.deliveryTime);

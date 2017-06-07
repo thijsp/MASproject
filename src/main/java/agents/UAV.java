@@ -162,7 +162,7 @@ public abstract class UAV extends Vehicle implements CommUser {
         if (!this.motor.canFlyTime(flyTime, this.getSpeed())) {
             // Not enough power - crash!
             System.err.println("Drone " + this + " has crashed!");
-            //this.state = DroneState.OUT_OF_SERVICE;
+            this.state = DroneState.OUT_OF_SERVICE;
             return;
         }
 

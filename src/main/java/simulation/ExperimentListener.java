@@ -11,7 +11,9 @@ import com.github.rinde.rinsim.core.model.time.TimeLapse;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Created by thijspeirelinck on 5/06/17.
@@ -46,16 +48,12 @@ public class ExperimentListener implements TickListener {
         this.deliveredParcels.add(deliveredParcels.size());
         Set<DistributionCenter> depots = rm.getObjectsOfType(DistributionCenter.class);
         int remainingCount = depots.stream().mapToInt(DistributionCenter::getRemainingParcels).sum();
+        int deliveredCount = deliveredParcels.size();
         remainingParcels.add(remainingCount);
-        if (remainingCount == 0 && parcelGen.getParcels_generated() == parcelGen.getMaxParcels()) {
+        if (remainingCount == 0 && parcelGen.getParcels_generated() == parcelGen.getMaxParcels()
+                && deliveredCount == parcelGen.getMaxParcels()) {
             sim.stop();
             this.done = true;
-//            try {
-//                sim.stop();
-//            }
-//            catch (Exception e) {
-//                    System.err.println("caught error:" + e.getMessage());
-//            }
         }
     }
 
@@ -87,6 +85,15 @@ public class ExperimentListener implements TickListener {
             sum += ((DroneParcel)parcel).getExistanceTime();
         }
         return sum / deliveredParcels.size();
+    }
+
+    public List<Long> getParcelsExistanceTime() {
+        PDPModel pm = sim.getModelProvider().getModel(PDPModel.class);
+        PDPModel.ParcelState delivered = PDPModel.ParcelState.DELIVERED;
+        Collection<Parcel> deliveredParcels = pm.getParcels(delivered);
+        return deliveredParcels.stream()
+                .map(parcel -> ((DroneParcel)parcel).getExistanceTime())
+                .collect(Collectors.toList());
     }
 
 }

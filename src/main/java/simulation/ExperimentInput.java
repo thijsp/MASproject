@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Created by krispeirelinck on 5/06/17.
+ * Created by thijspeirelinck on 5/06/17.
  */
 public class ExperimentInput {
 
@@ -13,9 +13,11 @@ public class ExperimentInput {
     public final int UAVS = 20;
     public int STEPS;
 
-    ExperimentInput(int steps, int minParcels, int maxParcels) {
+    ExperimentInput(int steps, int minParcels, int maxParcels, boolean parcelExp) {
         this.STEPS = steps;
-        this.setMaxParcelList(steps, minParcels, maxParcels);
+        if (parcelExp) {
+            this.setMaxParcelList(steps, minParcels, maxParcels);
+        }
     }
 
     private void setMaxParcelList(int steps, int minParcels, int maxParcels) {

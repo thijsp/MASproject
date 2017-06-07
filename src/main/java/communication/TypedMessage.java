@@ -17,11 +17,5 @@ public abstract class TypedMessage implements MessageContents {
     public String toString() {
         return String.format("<Message.%s [%s]>", this.type, this.getDescription());
     }
-//    public MessageType getType() {
-//        return this.type;
-//    }
 
-//    public void setType(MessageType type) {
-//        this.type = type;
-//    }
 }

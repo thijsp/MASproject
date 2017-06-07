@@ -30,9 +30,6 @@ public final class Auction {
     public Auction(DroneParcel parcel, DistributionCenter moderator) {
         this.parcel = parcel;
         this.moderator = moderator;
-        // this.bids = new ArrayList<>();
-        // this.open = true;
-        // parcel.setAuction(this);
     }
 
     public DroneParcel getParcel() {

@@ -24,6 +24,4 @@ public enum DroneState {
      * charging time before it can deliver a package
      */
     CHARGING,
-
-    //IDLE, DELIVERING, PICKING, IN_AUCTION, CHARGING, NO_SERVICE
 }

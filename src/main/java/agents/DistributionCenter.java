@@ -82,7 +82,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     }
 
     private void onMessage(TypedMessage msg) {
-        // System.out.println(String.format("%s received message\t%s", this, msg));
         switch (msg.type) {
             case NEW_BID:
                 this.onNewBid(((BidMessage) msg).getBid());
@@ -95,7 +94,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
                 break;
             default:
                 // Unknown message received
-                // System.err.println(String.format("Unknown message of type %s received: %s", msg.type, msg));
         }
     }
 
@@ -127,7 +125,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     }
 
     private void onNewAuction(Auction auction) {
-//        System.out.println(String.format("Starting auction for %s at %s", auction.getParcel(), auction.getModerator()));
         this.broadcast(AuctionMessage.createNewAuction(auction));
     }
 
@@ -182,11 +179,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
             state.assignee = Optional.of(winner);
             this.sendDirect(BidMessage.createAuctionWon(best.get()), winner);
         }
-//        else {
-//            // No more bids available: restart auction
-//            System.out.println("Last bid refused, restarting auction...");
-//            this.onNewAuction(new Auction(bid.getParcel(), this));
-//        }
     }
 
     /**
@@ -246,7 +238,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
     }
     
     public void sendDirect(TypedMessage content, CommUser recipient) {
-        // System.out.println(String.format("Sending message %s to %s", content, recipient));
         this.getCommDevice().send(content, recipient);
     }
 
@@ -293,7 +284,6 @@ public final class DistributionCenter extends Depot implements CommUser, TickLis
         for (DroneParcel parcel : parcels) {
             AuctionState state = this.auctions.get(parcel);
             if (state.forgotten()) {
-                System.out.println("reactivated");
                 final TypedMessage doneMsg = AuctionMessage.createAuctionDone(new Auction(parcel, this));
                 state.bids.stream()
                         .map(Bid::getBidder)

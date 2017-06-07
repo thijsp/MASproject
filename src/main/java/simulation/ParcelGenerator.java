@@ -58,7 +58,6 @@ public class ParcelGenerator implements TickListener {
                 return;
             }
             shortestEscape = DistributionCenter.getPathToClosest(rm, destination);
-            // System.out.println(String.format("New parcel added with destination (%.2f,%.2f)", destination.x, destination.y));
             DroneParcel parcel = new DroneParcel(destination, depot, shortestPath, shortestEscape, parcels_generated);
             this.sim.register(parcel);
             parcel.setCreationTime(time.getTime());

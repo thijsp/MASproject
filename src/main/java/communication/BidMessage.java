@@ -39,7 +39,5 @@ public final class BidMessage extends TypedMessage {
     String getDescription() {
         return "" + this.bid;
     }
-//    public double getDeliveryTime() {
-//        return this.bid.getDeliveryTime();
-//    }
+
 }
